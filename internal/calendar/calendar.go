@@ -1,35 +1,61 @@
 package calendar
 
 import (
-	//"net/http"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const (
 	calendarUrl string = "http://isdayoff.ru/"
-	DateFormat string = "02-01-2006"
+	DateFormat  string = "02-01-2006"
 )
 
-func CheckDay(date time.Time) int {
-	var url_builder strings.Builder;
+/// This function requests isdayoff.ru service to
+/// determine if specified date is working day.
+/// Isdayoff returns 0 if requested day is working day and
+/// 1 if holiday.
+/// Detailed information about API is here:
+/// https://isdayoff.ru/desc/
+func IsWorkingDay(date time.Time) (bool, error) {
+	var (
+		url_builder strings.Builder
+		month, day  string
+	)
+
 	url_builder.WriteString(calendarUrl)
+	url_builder.WriteString(strconv.Itoa(date.Year()))
 
-	fmt.Println(date.Year())
-	url_builder.WriteString(string(date.Year()))
+	month = strconv.Itoa(int(date.Month()))
+	if len(month) == 1 {
+		url_builder.WriteString("0")
+	}
+	url_builder.WriteString(month)
+
+	day = strconv.Itoa(int(date.Day()))
+	if len(day) == 1 {
+		url_builder.WriteString("0")
+	}
+	url_builder.WriteString(day)
+
 	fmt.Println(url_builder.String())
+	resp, err := http.Get(url_builder.String())
+	if err != nil {
+		return false, err
+	}
 
-	fmt.Println(date.Month())
-	url_builder.WriteString(string(date.Month()))
-	fmt.Println(url_builder.String())
+	answer, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
 
-	fmt.Println(date.Day())
-	url_builder.WriteString(string(date.Day()))
-	fmt.Println(url_builder.String())
+	result, err := strconv.Atoi(string(answer))
+	if err != nil {
+		return false, err
+	}
 
-
-	fmt.Println(url_builder.String())
-	//http.Get()
-	return 100
+	return result == 1, nil
 }
