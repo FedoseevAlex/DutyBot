@@ -14,7 +14,6 @@ type Config struct {
 	DutyCycle int
 	// Telegram bot token
 	BotToken string
-
 }
 
 // Read config from file and return Config struct
