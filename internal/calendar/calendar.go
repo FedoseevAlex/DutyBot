@@ -9,32 +9,33 @@ import (
 )
 
 const (
-	calendarUrl string = "http://isdayoff.ru/"
-	DateFormat  string = "02-01-2006"
+	calendarURL string = "http://isdayoff.ru/"
+	// Date format is DD-MM-YYYY
+	DateFormat string = "02-01-2006"
 )
 
 func buildURLForDate(date time.Time) string {
 	var (
-		url_builder strings.Builder
-		month, day  string
+		URLBuilder strings.Builder
+		month, day string
 	)
 
-	url_builder.WriteString(calendarUrl)
-	url_builder.WriteString(strconv.Itoa(date.Year()))
+	URLBuilder.WriteString(calendarURL)
+	URLBuilder.WriteString(strconv.Itoa(date.Year()))
 
 	month = strconv.Itoa(int(date.Month()))
 	if len(month) == 1 {
-		url_builder.WriteString("0")
+		URLBuilder.WriteString("0")
 	}
-	url_builder.WriteString(month)
+	URLBuilder.WriteString(month)
 
-	day = strconv.Itoa(int(date.Day()))
+	day = strconv.Itoa(date.Day())
 	if len(day) == 1 {
-		url_builder.WriteString("0")
+		URLBuilder.WriteString("0")
 	}
-	url_builder.WriteString(day)
+	URLBuilder.WriteString(day)
 
-	return url_builder.String()
+	return URLBuilder.String()
 }
 
 /// This function requests isdayoff.ru service to
@@ -43,22 +44,22 @@ func buildURLForDate(date time.Time) string {
 /// 1 if holiday.
 /// Detailed information about API is here:
 /// https://isdayoff.ru/desc/
-func IsWorkingDay(date time.Time) (bool, error) {
+func IsWorkingDay(date time.Time) (isWorkingDay bool, err error) {
 	var url string = buildURLForDate(date)
 	resp, err := http.Get(url)
 	if err != nil {
-		return false, err
+		return
 	}
 
-	answer, err := ioutil.ReadAll(resp.Body)
+	respData, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return false, err
+		return
 	}
 
-	result, err := strconv.Atoi(string(answer))
+	answer, err := strconv.Atoi(string(respData))
 	if err != nil {
-		return false, err
+		return
 	}
-
-	return result == 1, nil
+	isWorkingDay = answer == 1
+	return
 }
