@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"log"
 	"time"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type DBModel interface {
@@ -13,25 +11,72 @@ type DBModel interface {
 	Delete() error
 }
 
-func GetTodaysOperator(chatID int64) (as []*Assignment, err error) {
+func GetAllTodaysOperators() (as []*Assignment, err error) {
 	db, err := sql.Open("sqlite3", "duty.db")
 	if err != nil {
-		log.Print(err)
 		return
 	}
 	defer db.Close()
 
 	year, month, day := time.Now().Date()
-	today := time.Date(year, month, day, 0, 0, 0, 0, time.Now().Location())
-	log.Printf("Location %+v", time.Now().Location())
+	utcLocation, err := time.LoadLocation("UTC")
+	if err != nil {
+		return nil, err
+	}
+	today := time.Date(year, month, day, 0, 0, 0, 0, utcLocation)
+
+	rows, err := db.Query(
+		"select id, dutydate, chat_id, operator from assignments where dutydate=?",
+		today.Unix(),
+	)
+	if err != nil {
+		return
+	}
+	if rows.Err() != nil {
+		err = rows.Err()
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		op := &Operator{}
+		a := &Assignment{Operator: op}
+		err = rows.Scan(&a.ID, &a.DutyDate, &a.ChatID, &op.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		err = op.GetByID()
+		if err != nil {
+			return nil, err
+		}
+		as = append(as, a)
+	}
+	return
+}
+
+
+func GetTodaysOperator(chatID int64) (as []*Assignment, err error) {
+	db, err := sql.Open("sqlite3", "duty.db")
+	if err != nil {
+		return
+	}
+	defer db.Close()
+
+	year, month, day := time.Now().Date()
+	utcLocation, err := time.LoadLocation("UTC")
+	if err != nil {
+		return nil, err
+	}
+	today := time.Date(year, month, day, 0, 0, 0, 0, utcLocation)
 
 	row := db.QueryRow(
 		"select id, dutydate, chat_id, operator from assignments where dutydate=? and chat_id=?",
 		today.Unix(),
 		chatID,
 	)
+	log.Println("today", today.Unix(), "chatid", chatID)
 	if err != nil {
-		log.Print(err)
 		return
 	}
 
@@ -42,7 +87,7 @@ func GetTodaysOperator(chatID int64) (as []*Assignment, err error) {
 		return nil, err
 	}
 
-	err = op.Get()
+	err = op.GetByID()
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +95,7 @@ func GetTodaysOperator(chatID int64) (as []*Assignment, err error) {
 	return
 }
 
-func GetAssignmentSchedule(weeks int) (as []*Assignment, err error) {
+func GetAssignmentSchedule(weeks int, chatID int64) (as []*Assignment, err error) {
 	db, err := sql.Open("sqlite3", "duty.db")
 	if err != nil {
 		log.Print(err)
@@ -64,7 +109,8 @@ func GetAssignmentSchedule(weeks int) (as []*Assignment, err error) {
 	future := today.Add(time.Hour * time.Duration(weeks*7*24))
 
 	rows, err := db.Query(
-		"select id, dutydate, chat_id, operator from assignments where dutydate BETWEEN ? and ?",
+		"select id, dutydate, chat_id, operator from assignments where chat_id=? and dutydate BETWEEN ? and ?",
+		chatID,
 		today.Unix(),
 		future.Unix(),
 	)
@@ -76,7 +122,6 @@ func GetAssignmentSchedule(weeks int) (as []*Assignment, err error) {
 		log.Print(rows.Err())
 		return
 	}
-	log.Printf("today %d, future %d", today.Unix(), future.Unix())
 	defer rows.Close()
 
 	for rows.Next() {
@@ -94,8 +139,6 @@ func GetAssignmentSchedule(weeks int) (as []*Assignment, err error) {
 		}
 		as = append(as, a)
 	}
-	log.Printf("as pointer %p", as)
-	log.Printf("len as %d", len(as))
 	return
 }
 
@@ -143,7 +186,7 @@ CREATE TABLE IF NOT EXISTS operators (
 
 CREATE TABLE IF NOT EXISTS assignments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    dutydate TEXT UNIQUE NOT NULL,
+    dutydate TEXT NOT NULL,
     operator INTEGER,
     chat_id INTEGER,
     created_at TEXT,

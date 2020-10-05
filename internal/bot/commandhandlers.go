@@ -2,8 +2,10 @@ package bot
 
 import (
 	db "dutybot/internal/database"
+	"dutybot/internal/calendar"
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -50,8 +52,9 @@ func help(bot *tgbot.BotAPI, msg *tgbot.Message) {
 func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	ass, err := db.GetTodaysOperator(msg.Chat.ID)
 	if err != nil {
-		reply := tgbot.NewMessage(msg.Chat.ID, "Я обосрался")
 		log.Print(err)
+
+		reply := tgbot.NewMessage(msg.Chat.ID, "Couldn't fetch today's duty.")
 		_, err := bot.Send(reply)
 		if err != nil {
 			log.Print(err)
@@ -60,8 +63,7 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	}
 
 	var b strings.Builder
-	for i, as := range ass {
-		log.Printf("%d. %+v, %+v", i, as, as.Operator)
+	for _, as := range ass {
 		b.WriteString(fmt.Sprintf("@%s", as.Operator.UserName))
 	}
 
@@ -72,9 +74,26 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	}
 }
 
+/// This function assumes that date
+/// is ordered like DD MM YYYY
+func parseTime(probablyTime string) (t time.Time, err error) {
+	r := regexp.MustCompile("([0-9]{1,2}).*?([0-9]{1,2}).*?([0-9]{4})")
+	if !r.MatchString(probablyTime) {
+		err = fmt.Errorf("'%s' is not look like DD MM YYYY", probablyTime)
+		return
+	}
+	parts := r.FindAllStringSubmatch(probablyTime, 1)[0]
+	date := fmt.Sprintf("%02s", parts[1])
+	month := fmt.Sprintf("%02s", parts[2])
+	year := parts[3]
+	t, err = time.Parse("02 01 2006", fmt.Sprintf("%s %s %s", date, month, year))
+	return
+}
+
 func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
-	dutydate, err := time.Parse("02-01-2006", msg.CommandArguments())
+	dutydate, err := parseTime(msg.CommandArguments())
 	if err != nil {
+		log.Print(err)
 		reply := tgbot.NewMessage(msg.Chat.ID, "Something wrong with date.")
 		_, err := bot.Send(reply)
 		if err != nil {
@@ -82,6 +101,20 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		}
 		return
 	}
+
+	if calendar.IsHoliday(dutydate) {
+		answer := fmt.Sprintf(
+			"%s is a holiday. No duty on holidays",
+			dutydate.Format(time.RFC1123),
+		)
+		reply := tgbot.NewMessage(msg.Chat.ID, answer)
+		_, err := bot.Send(reply)
+		if err != nil {
+			log.Print(err)
+		}
+		return
+	}
+
 	op := &db.Operator{
 		UserName:  msg.From.UserName,
 		FirstName: msg.From.FirstName,
@@ -96,6 +129,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		}
 	}
 	a := &db.Assignment{ChatID: msg.Chat.ID, DutyDate: dutydate.Unix(), Operator: op}
+	log.Printf("%+v", a)
 	err = a.Insert()
 	if err != nil {
 		log.Print(err)
@@ -114,7 +148,7 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		weeks = 2
 	}
 
-	assignments, err := db.GetAssignmentSchedule(weeks)
+	assignments, err := db.GetAssignmentSchedule(weeks, msg.Chat.ID)
 	if err != nil {
 		reply := tgbot.NewMessage(msg.Chat.ID, "Couldn't get assignments.")
 		_, err := bot.Send(reply)
@@ -125,13 +159,14 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	}
 
 	var b strings.Builder
-	for i, ass := range assignments {
-		log.Printf("%d. %+v, %+v", i, ass, ass.Operator)
-		b.WriteString(fmt.Sprintf("%s %s", ass.Operator.UserName, time.Unix(ass.DutyDate, 0)))
+	for _, ass := range assignments {
+		dutyDate := time.Unix(ass.DutyDate, 0).Format("Mon\tJan 02 2006")
+		b.WriteString(fmt.Sprintf("`%s\t\t%s`", ass.Operator.UserName, dutyDate))
 		b.WriteRune('\n')
 	}
 
 	reply := tgbot.NewMessage(msg.Chat.ID, b.String())
+	reply.ParseMode = "Markdown"
 	_, err = bot.Send(reply)
 	if err != nil {
 		log.Print(err)

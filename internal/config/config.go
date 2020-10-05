@@ -1,8 +1,8 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
+	"time"
 	"log"
 
 	"gopkg.in/yaml.v2"
@@ -10,27 +10,26 @@ import (
 
 // Configuration structure
 type Config struct {
-	// How often to remind about duty
-	DutyCycle int
+	// How often to announce a new duty
+	DutyCycle time.Duration `yaml:"duty_cycle"`
+	// When duty shift starts
+	DutyStartAt time.Time `yaml:"duty_start_at"`
 	// Telegram bot token
-	BotToken string
-
+	BotToken string `yaml:"bot_token"`
 }
 
-// Read config from file and return Config struct
-func ReadConfig(path string) Config {
-	fmt.Println(path)
-	var config Config
+var Cfg Config
+
+// Read config from file and fill Cfg var
+func ReadConfig(path string) {
 
 	configdata, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = yaml.Unmarshal(configdata, &config)
+	err = yaml.Unmarshal(configdata, &Cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	return config
 }
