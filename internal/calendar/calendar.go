@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -17,24 +18,12 @@ const (
 func buildURLForDate(date time.Time) string {
 	var (
 		URLBuilder strings.Builder
-		month, day string
 	)
 
 	URLBuilder.WriteString(calendarURL)
 	URLBuilder.WriteString(strconv.Itoa(date.Year()))
-
-	month = strconv.Itoa(int(date.Month()))
-	if len(month) == 1 {
-		URLBuilder.WriteString("0")
-	}
-	URLBuilder.WriteString(month)
-
-	day = strconv.Itoa(date.Day())
-	if len(day) == 1 {
-		URLBuilder.WriteString("0")
-	}
-	URLBuilder.WriteString(day)
-
+	URLBuilder.WriteString(fmt.Sprintf("%02d", date.Month()))
+	URLBuilder.WriteString(fmt.Sprintf("%02d", date.Day()))
 	return URLBuilder.String()
 }
 
@@ -44,12 +33,21 @@ func buildURLForDate(date time.Time) string {
 /// 1 if holiday.
 /// Detailed information about API is here:
 /// https://isdayoff.ru/desc/
-func IsWorkingDay(date time.Time) (isWorkingDay bool, err error) {
+func IsHoliday(date time.Time) (isHoliday bool) {
+	isHoliday = date.Weekday() > 5
+
+	client := http.DefaultClient
 	var url string = buildURLForDate(date)
-	resp, err := http.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return
 	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
 
 	respData, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -60,6 +58,5 @@ func IsWorkingDay(date time.Time) (isWorkingDay bool, err error) {
 	if err != nil {
 		return
 	}
-	isWorkingDay = answer == 1
-	return
+	return answer == 1
 }

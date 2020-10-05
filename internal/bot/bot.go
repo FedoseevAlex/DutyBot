@@ -2,7 +2,10 @@ package bot
 
 import (
 	"dutybot/internal/config"
+	"dutybot/internal/database"
 	db "dutybot/internal/database"
+	"dutybot/internal/tasks"
+	"fmt"
 	"log"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -23,7 +26,7 @@ func StartBot() {
 
 	for update := range updates {
 		if update.Message.IsCommand() {
-			processCommands(bot, update.Message)
+			go processCommands(bot, update.Message)
 		} else {
 			sticker := tgbot.NewStickerShare(
 				update.Message.Chat.ID,
@@ -38,24 +41,40 @@ func StartBot() {
 	}
 }
 
-// func startPoll(bot *tgbot.BotAPI) {
-// }
+func startAnnouncing(bot *tgbot.BotAPI) {
+	msgFormat := "@%s is on duty today"
+	announce := func() error {
+		ass, err := database.GetAllTodaysOperators()
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, as := range ass {
+			fmt.Printf("Sending %+v\n", as)
+			msg := tgbot.NewMessage(as.ChatID, fmt.Sprintf(msgFormat, as.Operator.UserName))
+			msg.DisableNotification = true
+
+			_, err := bot.Send(msg)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	t := tasks.NewTask(announce, config.Cfg.DutyCycle, config.Cfg.DutyStartAt)
+	t.Start()
+}
 
 func initBot() (bot *tgbot.BotAPI) {
 	var err error
 
 	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
-	conf := config.ReadConfig("config.yaml")
+	config.ReadConfig("config.yaml")
 
-	bot, err = tgbot.NewBotAPI(conf.BotToken)
+	bot, err = tgbot.NewBotAPI(config.Cfg.BotToken)
 	if err != nil {
 		log.Fatal(err)
 	}
-	bot.Debug = true
-
-	bot, err = tgbot.NewBotAPI("token string")
-	if err != nil {
-		log.Fatal(err)
-	}
+	startAnnouncing(bot)
+	// bot.Debug = true
 	return
 }

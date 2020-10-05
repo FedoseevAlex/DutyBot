@@ -2,8 +2,6 @@ package database
 
 import (
 	"database/sql"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // Basic info of Telegram user that can be assigned for duty
