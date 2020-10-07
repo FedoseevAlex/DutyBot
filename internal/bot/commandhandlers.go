@@ -1,8 +1,9 @@
 package bot
 
 import (
-	db "dutybot/internal/database"
 	"dutybot/internal/calendar"
+	"dutybot/internal/database"
+	db "dutybot/internal/database"
 	"fmt"
 	"log"
 	"regexp"
@@ -50,7 +51,7 @@ func help(bot *tgbot.BotAPI, msg *tgbot.Message) {
 }
 
 func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
-	ass, err := db.GetTodaysOperator(msg.Chat.ID)
+	as, err := db.GetTodaysAssignment(msg.Chat.ID)
 	if err != nil {
 		log.Print(err)
 
@@ -62,12 +63,8 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		return
 	}
 
-	var b strings.Builder
-	for _, as := range ass {
-		b.WriteString(fmt.Sprintf("@%s", as.Operator.UserName))
-	}
-
-	reply := tgbot.NewMessage(msg.Chat.ID, b.String())
+	operator := fmt.Sprintf("@%s", as.Operator.UserName)
+	reply := tgbot.NewMessage(msg.Chat.ID, operator)
 	_, err = bot.Send(reply)
 	if err != nil {
 		log.Print(err)
@@ -95,6 +92,24 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	if err != nil {
 		log.Print(err)
 		reply := tgbot.NewMessage(msg.Chat.ID, "Something wrong with date.")
+		_, err := bot.Send(reply)
+		if err != nil {
+			log.Print(err)
+		}
+		return
+	}
+
+	as, err := database.GetAssignmentByDate(msg.Chat.ID, dutydate)
+	if err != nil {
+		log.Print(err)
+	}
+	if as != nil {
+		log.Printf("%+v %+v", as, as.Operator)
+		reply := tgbot.NewMessage(
+			msg.Chat.ID,
+			fmt.Sprintf("This day already occupied by `%s`", as.Operator.UserName),
+		)
+		reply.ParseMode = "Markdown"
 		_, err := bot.Send(reply)
 		if err != nil {
 			log.Print(err)

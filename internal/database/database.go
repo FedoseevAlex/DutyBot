@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
 )
@@ -55,43 +56,43 @@ func GetAllTodaysOperators() (as []*Assignment, err error) {
 	return
 }
 
+func GetTodaysAssignment(chatID int64) (*Assignment, error) {
+	return GetAssignmentByDate(chatID, time.Now())
+}
 
-func GetTodaysOperator(chatID int64) (as []*Assignment, err error) {
+func GetAssignmentByDate(chatID int64, date time.Time) (as *Assignment, err error) {
 	db, err := sql.Open("sqlite3", "duty.db")
 	if err != nil {
 		return
 	}
 	defer db.Close()
 
-	year, month, day := time.Now().Date()
-	utcLocation, err := time.LoadLocation("UTC")
-	if err != nil {
-		return nil, err
-	}
-	today := time.Date(year, month, day, 0, 0, 0, 0, utcLocation)
+	year, month, day := date.Date()
+	dutydate := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 
 	row := db.QueryRow(
 		"select id, dutydate, chat_id, operator from assignments where dutydate=? and chat_id=?",
-		today.Unix(),
+		dutydate.Unix(),
 		chatID,
 	)
-	log.Println("today", today.Unix(), "chatid", chatID)
+	log.Println("today", dutydate.Unix(), "chatid", chatID)
 	if err != nil {
 		return
 	}
 
 	op := &Operator{}
-	a := &Assignment{Operator: op}
-	err = row.Scan(&a.ID, &a.DutyDate, &a.ChatID, &op.ID)
+	as = &Assignment{Operator: op}
+	err = row.Scan(&as.ID, &as.DutyDate, &as.ChatID, &op.ID)
 	if err != nil {
+		err = fmt.Errorf("Assignment scan: %s", err)
 		return nil, err
 	}
 
 	err = op.GetByID()
 	if err != nil {
+		err = fmt.Errorf("Operator get: %s", err)
 		return nil, err
 	}
-	as = append(as, a)
 	return
 }
 
