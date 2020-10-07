@@ -2,8 +2,8 @@ package config
 
 import (
 	"io/ioutil"
-	"time"
 	"log"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
