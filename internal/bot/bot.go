@@ -25,14 +25,22 @@ func StartBot() {
 	initHandlers()
 
 	for update := range updates {
-		if update.Message.IsCommand() {
-			go processCommands(bot, update.Message)
+		var msg *tgbot.Message
+
+		if update.EditedMessage != nil {
+			msg = update.EditedMessage
+		} else {
+			msg = update.Message
+		}
+
+		if msg.IsCommand() {
+			go processCommands(bot, msg)
 		} else {
 			sticker := tgbot.NewStickerShare(
-				update.Message.Chat.ID,
+				msg.Chat.ID,
 				"CAACAgIAAxkBAAM3X2xZtzvEBDmu4zcuRYYN8xW7hskAAqsAA5XcYhplKvU6wxFPMRsE",
 			)
-			sticker.ReplyToMessageID = update.Message.MessageID
+			sticker.ReplyToMessageID = msg.MessageID
 			_, err := bot.Send(sticker)
 			if err != nil {
 				return
