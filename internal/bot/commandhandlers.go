@@ -99,6 +99,21 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		return
 	}
 
+	if time.Now().After(dutydate) {
+		reply := tgbot.NewMessage(
+			msg.Chat.ID,
+			fmt.Sprintf(
+				"Assignment is possible only for a future date",
+				dutydate.Format("02-01-2006"),
+			),
+		)
+		_, err := bot.Send(reply)
+		if err != nil {
+			log.Print(err)
+		}
+		return
+	}
+
 	as, err := database.GetAssignmentByDate(msg.Chat.ID, dutydate)
 	if err != nil {
 		log.Print(err)
