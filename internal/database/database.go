@@ -110,7 +110,7 @@ func GetAssignmentSchedule(weeks int, chatID int64) (as []*Assignment, err error
 	future := today.Add(time.Hour * time.Duration(weeks*7*24))
 
 	rows, err := db.Query(
-		"select id, dutydate, chat_id, operator from assignments where chat_id=? and dutydate BETWEEN ? and ?",
+		"select id, dutydate, chat_id, operator from assignments where chat_id=? and dutydate BETWEEN ? and ? ORDER BY dutydate",
 		chatID,
 		today.Unix(),
 		future.Unix(),
