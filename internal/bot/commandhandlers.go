@@ -102,10 +102,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	if time.Now().After(dutydate) {
 		reply := tgbot.NewMessage(
 			msg.Chat.ID,
-			fmt.Sprintf(
-				"Assignment is possible only for a future date",
-				dutydate.Format("02-01-2006"),
-			),
+			"Assignment is possible only for a future date",
 		)
 		_, err := bot.Send(reply)
 		if err != nil {
@@ -135,7 +132,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	if calendar.IsHoliday(dutydate) {
 		answer := fmt.Sprintf(
 			"%s is a holiday. No duty on holidays",
-			dutydate.Format(time.RFC1123),
+			dutydate.Format("02-01-2006"),
 		)
 		reply := tgbot.NewMessage(msg.Chat.ID, answer)
 		_, err := bot.Send(reply)
@@ -165,11 +162,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		log.Print(err)
 		return
 	}
-	reply := tgbot.NewMessage(msg.Chat.ID, "Assigned")
-	_, err = bot.Send(reply)
-	if err != nil {
-		log.Print(err)
-	}
+	show(bot, msg)
 }
 
 func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
