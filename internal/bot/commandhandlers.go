@@ -8,8 +8,9 @@ import (
 	"log"
 	"regexp"
 	"strconv"
-	"strings"
+	"bytes"
 	"time"
+	"text/tabwriter"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -188,12 +189,22 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		return
 	}
 
-	var b strings.Builder
+	buf := make([]byte, 0)
+	var b *bytes.Buffer = bytes.NewBuffer(buf)
+	var t *tabwriter.Writer = tabwriter.NewWriter(
+		b,
+		0,
+		4,
+		2,
+		' ',
+		tabwriter.TabIndent,
+	)
 	for _, ass := range assignments {
-		dutyDate := time.Unix(ass.DutyDate, 0).Format("Mon\tJan 02 2006")
-		b.WriteString(fmt.Sprintf("`%s\t\t%s`", ass.Operator.UserName, dutyDate))
-		b.WriteRune('\n')
+		dutyDate := time.Unix(ass.DutyDate, 0).Format("Mon Jan 02 2006")
+
+		fmt.Fprintf(t, "`\t%s\t%s\t`\n", ass.Operator.UserName, dutyDate)
 	}
+	t.Flush()
 
 	reply := tgbot.NewMessage(msg.Chat.ID, b.String())
 	reply.ParseMode = "Markdown"
