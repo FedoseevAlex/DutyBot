@@ -1,9 +1,5 @@
 package database
 
-import (
-	"database/sql"
-)
-
 // Basic info of Telegram user that can be assigned for duty
 type Operator struct {
 	ID        int64
@@ -41,14 +37,8 @@ func (op *Operator) Delete() (err error) {
 
 // Methods
 
-func (op *Operator) Get() (err error) {
-	db, err := sql.Open("sqlite3", "duty.db")
-	if err != nil {
-		return
-	}
-	defer db.Close()
-
-	opData := db.QueryRow(
+func (op *Operator) GetByUserName() (err error) {
+	opData := DB.QueryRow(
 		"select id, firstname, lastname from operators where username=?",
 		op.UserName,
 	)
@@ -60,13 +50,7 @@ func (op *Operator) Get() (err error) {
 }
 
 func (op *Operator) GetByID() (err error) {
-	db, err := sql.Open("sqlite3", "duty.db")
-	if err != nil {
-		return
-	}
-	defer db.Close()
-
-	opData := db.QueryRow(
+	opData := DB.QueryRow(
 		"select username, firstname, lastname from operators where id=?",
 		op.ID,
 	)

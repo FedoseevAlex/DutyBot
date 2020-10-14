@@ -4,14 +4,19 @@ import (
 	"os"
 	"testing"
 	"time"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func TestMain(m *testing.M) {
 	_ = os.Remove("duty.db")
-	CreateSchema()
+
+	err := InitDB("duty.db")
+	if err != nil {
+		panic(err)
+	}
+
 	retCode := m.Run()
 	os.Exit(retCode)
-	// os.Remove("duty.db")
 }
 
 func TestExecQueryInsert(t *testing.T) {
@@ -39,8 +44,8 @@ func TestExecQueryDelete(t *testing.T) {
 	if err != nil {
 		t.Errorf("Got error %s", err)
 	}
-	if id != -1 {
-		t.Errorf("Wrong id got: %d, expected: %d", id, -1)
+	if id != 1 {
+		t.Errorf("Wrong id got: %d, expected: %d", id, 1)
 	}
 }
 

@@ -2,20 +2,19 @@ package tasks
 
 import (
 	"dutybot/internal/config"
-	"fmt"
 	"log"
 	"time"
 )
 
 type Task struct {
-	StartTime time.Time
+	StartTime config.Clock
 	doneChan  chan bool
 	Period    time.Duration
 	Ticker    *time.Ticker
 	Job       func() error
 }
 
-func NewTask(job func() error, period time.Duration, startAt time.Time) *Task {
+func NewTask(job func() error, period time.Duration, startAt config.Clock) *Task {
 	t := &Task{
 		StartTime: startAt,
 		Period:    period,
@@ -25,7 +24,7 @@ func NewTask(job func() error, period time.Duration, startAt time.Time) *Task {
 	return t
 }
 
-func getDurationUntil(point time.Time) time.Duration {
+func getDurationUntil(point config.Clock) time.Duration {
 	now := time.Now()
 	target := time.Date(
 		now.Year(),
@@ -38,9 +37,9 @@ func getDurationUntil(point time.Time) time.Duration {
 		now.Location())
 
 	if target.Before(now) {
-		target = target.Add(config.Cfg.DutyCycle)
+		target = target.Add(config.Cfg.DutyShift)
 	}
-	fmt.Println("Will start on", target)
+	log.Println("Will start on", target)
 	return time.Until(target)
 }
 
@@ -58,7 +57,7 @@ func (t *Task) Start() {
 			select {
 			case stop := <-t.doneChan:
 				if stop {
-					fmt.Println("Task was stopped")
+					log.Println("Task was stopped")
 					return
 				}
 			case <-t.Ticker.C:
