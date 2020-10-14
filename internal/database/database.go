@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+const (
+	hoursInDay int = 24
+	daysInWeek int = 7
+)
+
 var DB *sql.DB
 
 func InitDB(connStr string) error {
@@ -102,10 +107,11 @@ func GetAssignmentByDate(chatID int64, date time.Time) (as *Assignment, err erro
 }
 
 func GetAssignmentSchedule(weeks int, chatID int64) (as []*Assignment, err error) {
+	hoursInWeek := time.Duration(hoursInDay*daysInWeek) * time.Hour
 	year, month, day := time.Now().Date()
 	today := time.Date(year, month, day, 0, 0, 0, 0, time.Now().Location())
 	// Get future date "weeks" from now
-	future := today.Add(time.Hour * time.Duration(weeks*7*24))
+	future := today.Add(hoursInWeek * time.Duration(weeks))
 
 	rows, err := DB.Query(
 		`SELECT id, dutydate, chat_id, operator

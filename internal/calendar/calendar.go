@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -34,11 +35,16 @@ func buildURLForDate(date time.Time) string {
 /// Detailed information about API is here:
 /// https://isdayoff.ru/desc/
 func IsHoliday(date time.Time) (isHoliday bool) {
-	isHoliday = date.Weekday() > 5
+	isHoliday = date.Weekday() > time.Friday
 
 	client := http.DefaultClient
 	var url string = buildURLForDate(date)
-	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
+	req, err := http.NewRequestWithContext(
+		context.TODO(),
+		http.MethodGet,
+		url,
+		http.NoBody,
+	)
 	if err != nil {
 		return
 	}

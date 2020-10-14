@@ -73,7 +73,7 @@ func initBot() (bot *tgbot.BotAPI) {
 	var err error
 
 	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
-	config.ReadConfig("config.yaml")
+	config.ReadConfig()
 
 	err = db.InitDB(config.Cfg.DBConnectString)
 	if err != nil {
