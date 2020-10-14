@@ -8,6 +8,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	ConfigPath string = "/etc/dutybot/dutybot.yaml"
+)
+
 type Clock struct {
 	time.Time
 }
@@ -25,7 +29,7 @@ type Config struct {
 
 var Cfg Config
 
-func (c *Clock) UnmarshalYAML(unmarshal func (interface {}) error) error {
+func (c *Clock) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var tmp string
 	err := unmarshal(&tmp)
 	if err != nil {
@@ -40,9 +44,8 @@ func (c *Clock) UnmarshalYAML(unmarshal func (interface {}) error) error {
 }
 
 // Read config from file and fill Cfg var
-func ReadConfig(path string) {
-
-	configdata, err := ioutil.ReadFile(path)
+func ReadConfig() {
+	configdata, err := ioutil.ReadFile(ConfigPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,6 +54,4 @@ func ReadConfig(path string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-
 }

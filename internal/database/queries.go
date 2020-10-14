@@ -1,8 +1,8 @@
 package database
 
 import (
-	"log"
 	"fmt"
+	"log"
 )
 
 type DBModel interface {

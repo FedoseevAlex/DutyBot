@@ -1,16 +1,15 @@
 package bot
 
 import (
+	"bytes"
 	"dutybot/internal/calendar"
-	"dutybot/internal/database"
 	db "dutybot/internal/database"
 	"fmt"
 	"log"
 	"regexp"
 	"strconv"
-	"bytes"
-	"time"
 	"text/tabwriter"
+	"time"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -88,45 +87,47 @@ func parseTime(probablyTime string) (t time.Time, err error) {
 	return
 }
 
+func sendMessage(bot *tgbot.BotAPI, chatID int64, message string) {
+	msg := tgbot.NewMessage(
+		chatID,
+		message,
+	)
+	msg.ParseMode = "Markdown"
+
+	_, err := bot.Send(msg)
+	if err != nil {
+		log.Print(err)
+	}
+}
+
 func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	dutydate, err := parseTime(msg.CommandArguments())
 	if err != nil {
 		log.Print(err)
-		reply := tgbot.NewMessage(msg.Chat.ID, "Something wrong with date.")
-		_, err := bot.Send(reply)
-		if err != nil {
-			log.Print(err)
-		}
+		sendMessage(
+			bot,
+			msg.Chat.ID,
+			fmt.Sprintf("Something wrong with date: %s", err),
+		)
 		return
 	}
 
 	if time.Now().After(dutydate) {
-		reply := tgbot.NewMessage(
-			msg.Chat.ID,
-			"Assignment is possible only for a future date",
-		)
-		_, err := bot.Send(reply)
-		if err != nil {
-			log.Print(err)
-		}
+		sendMessage(bot, msg.Chat.ID, "Assignment is possible only for a future date")
 		return
 	}
 
-	as, err := database.GetAssignmentByDate(msg.Chat.ID, dutydate)
+	as, err := db.GetAssignmentByDate(msg.Chat.ID, dutydate)
 	if err != nil {
 		log.Print(err)
 	}
 	if as != nil {
 		log.Printf("%+v %+v", as, as.Operator)
-		reply := tgbot.NewMessage(
+		sendMessage(
+			bot,
 			msg.Chat.ID,
-			fmt.Sprintf("This day already occupied by `%s`", as.Operator.UserName),
+			fmt.Sprintf("This day already taken by `%s`", as.Operator.UserName),
 		)
-		reply.ParseMode = "Markdown"
-		_, err := bot.Send(reply)
-		if err != nil {
-			log.Print(err)
-		}
 		return
 	}
 
@@ -135,11 +136,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			"%s is a holiday. No duty on holidays",
 			dutydate.Format("02-01-2006"),
 		)
-		reply := tgbot.NewMessage(msg.Chat.ID, answer)
-		_, err := bot.Send(reply)
-		if err != nil {
-			log.Print(err)
-		}
+		sendMessage(bot, msg.Chat.ID, answer)
 		return
 	}
 
@@ -157,7 +154,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		}
 	}
 	a := &db.Assignment{ChatID: msg.Chat.ID, DutyDate: dutydate.Unix(), Operator: op}
-	log.Printf("%+v", a)
+	log.Printf("New assignment: %+v", a)
 	err = a.Insert()
 	if err != nil {
 		log.Print(err)
@@ -174,11 +171,7 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 
 	assignments, err := db.GetAssignmentSchedule(weeks, msg.Chat.ID)
 	if err != nil {
-		reply := tgbot.NewMessage(msg.Chat.ID, "Couldn't get assignments.")
-		_, err := bot.Send(reply)
-		if err != nil {
-			log.Print(err)
-		}
+		sendMessage(bot, msg.Chat.ID, "Couldn't get assignments.")
 		return
 	}
 
