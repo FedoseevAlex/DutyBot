@@ -2,7 +2,6 @@ package bot
 
 import (
 	"dutybot/internal/config"
-	"dutybot/internal/database"
 	db "dutybot/internal/database"
 	"dutybot/internal/tasks"
 	"fmt"
@@ -20,8 +19,6 @@ func StartBot() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	db.CreateSchema()
 	initHandlers()
 
 	for update := range updates {
@@ -52,7 +49,7 @@ func StartBot() {
 func startAnnouncing(bot *tgbot.BotAPI) {
 	msgFormat := "@%s is on duty today"
 	announce := func() error {
-		ass, err := database.GetAllTodaysOperators()
+		ass, err := db.GetAllTodaysOperators()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -68,7 +65,7 @@ func startAnnouncing(bot *tgbot.BotAPI) {
 		}
 		return nil
 	}
-	t := tasks.NewTask(announce, config.Cfg.DutyCycle, config.Cfg.DutyStartAt)
+	t := tasks.NewTask(announce, config.Cfg.DutyShift, config.Cfg.DutyStartAt)
 	t.Start()
 }
 
@@ -77,6 +74,11 @@ func initBot() (bot *tgbot.BotAPI) {
 
 	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
 	config.ReadConfig("config.yaml")
+
+	err = db.InitDB(config.Cfg.DBConnectString)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	bot, err = tgbot.NewBotAPI(config.Cfg.BotToken)
 	if err != nil {

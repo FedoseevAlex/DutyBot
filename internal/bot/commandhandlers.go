@@ -148,7 +148,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		FirstName: msg.From.FirstName,
 		LastName:  msg.From.LastName,
 	}
-	err = op.Get()
+	err = op.GetByUserName()
 	if err != nil {
 		err = op.Insert()
 		if err != nil {
