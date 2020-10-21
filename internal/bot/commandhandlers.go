@@ -176,8 +176,8 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	}
 
 	buf := make([]byte, 0)
-	var b *bytes.Buffer = bytes.NewBuffer(buf)
-	var t *tabwriter.Writer = tabwriter.NewWriter(
+	b := bytes.NewBuffer(buf)
+	t := tabwriter.NewWriter(
 		b,
 		0,
 		4,
@@ -188,9 +188,17 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	for _, ass := range assignments {
 		dutyDate := time.Unix(ass.DutyDate, 0).Format("Mon Jan 02 2006")
 
-		fmt.Fprintf(t, "`\t%s\t%s\t`\n", ass.Operator.UserName, dutyDate)
+		_, err = fmt.Fprintf(t, "`%s\t%s`\n", ass.Operator.UserName, dutyDate)
+		if err != nil {
+			log.Print(err)
+			return
+		}
 	}
-	t.Flush()
+	err = t.Flush()
+	if err != nil {
+		log.Print(err)
+		return
+	}
 
 	reply := tgbot.NewMessage(msg.Chat.ID, b.String())
 	reply.ParseMode = "Markdown"
