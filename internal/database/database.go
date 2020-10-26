@@ -109,7 +109,7 @@ func GetAssignmentByDate(chatID int64, date time.Time) (as *Assignment, err erro
 func GetAssignmentSchedule(weeks int, chatID int64) (as []*Assignment, err error) {
 	hoursInWeek := time.Duration(hoursInDay*daysInWeek) * time.Hour
 	year, month, day := time.Now().Date()
-	today := time.Date(year, month, day, 0, 0, 0, 0, time.Now().Location())
+	today := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 	// Get future date "weeks" from now
 	future := today.Add(hoursInWeek * time.Duration(weeks))
 
