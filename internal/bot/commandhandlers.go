@@ -100,6 +100,20 @@ func sendMessage(bot *tgbot.BotAPI, chatID int64, message string) {
 	}
 }
 
+func Today() time.Time {
+	y, m, d := time.Now().Date()
+	return time.Date(
+		y,
+		m,
+		d,
+		0,
+		0,
+		0,
+		0,
+		time.UTC,
+	)
+}
+
 func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	dutydate, err := parseTime(msg.CommandArguments())
 	if err != nil {
@@ -112,7 +126,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		return
 	}
 
-	if time.Now().After(dutydate) {
+	if Today().After(dutydate) {
 		sendMessage(bot, msg.Chat.ID, "Assignment is possible only for a future date")
 		return
 	}
