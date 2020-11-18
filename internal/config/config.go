@@ -19,6 +19,7 @@ type Clock struct {
 // Configuration structure
 type Config struct {
 	DBConnectString string `yaml:"db_connect_string"`
+	DBDriver        string `yaml:"db_driver"`
 	// How often to announce a new duty
 	DutyShift time.Duration `yaml:"duty_shift"`
 	// Time when duty shift starts as time.Time
@@ -27,7 +28,7 @@ type Config struct {
 	BotToken string `yaml:"bot_token"`
 }
 
-var Cfg Config
+var Cfg *Config
 
 func (c *Clock) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var tmp string
@@ -43,15 +44,20 @@ func (c *Clock) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-// Read config from file and fill Cfg var
+// Public function to read config from standard location
 func ReadConfig() {
 	configdata, err := ioutil.ReadFile(ConfigPath)
 	if err != nil {
 		log.Fatal(err)
 	}
+	Cfg = readConfigFromBytes(&configdata)
+}
 
-	err = yaml.Unmarshal(configdata, &Cfg)
+// Read config from file and fill Cfg var
+func readConfigFromBytes(contents *[]byte) (config *Config) {
+	err := yaml.Unmarshal(*contents, &config)
 	if err != nil {
 		log.Fatal(err)
 	}
+	return
 }
