@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"dutybot/internal/calendar"
 	db "dutybot/internal/database"
+	"dutybot/internal/utils"
 	"fmt"
 	"log"
 	"regexp"
@@ -54,7 +55,6 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	as, err := db.GetTodaysAssignment(msg.Chat.ID)
 	if err != nil {
 		log.Print(err)
-
 		reply := tgbot.NewMessage(msg.Chat.ID, "Couldn't fetch today's duty.")
 		_, err := bot.Send(reply)
 		if err != nil {
@@ -83,7 +83,7 @@ func parseTime(probablyTime string) (t time.Time, err error) {
 	date := fmt.Sprintf("%02s", parts[1])
 	month := fmt.Sprintf("%02s", parts[2])
 	year := parts[3]
-	t, err = time.Parse("02 01 2006", fmt.Sprintf("%s %s %s", date, month, year))
+	t, err = time.Parse(utils.DateFormat, fmt.Sprintf("%s-%s-%s", year, month, date))
 	return
 }
 
@@ -121,26 +121,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		sendMessage(
 			bot,
 			msg.Chat.ID,
-			fmt.Sprintf("Something wrong with date: %s", err),
-		)
-		return
-	}
-
-	if Today().After(dutydate) {
-		sendMessage(bot, msg.Chat.ID, "Assignment is possible only for a future date")
-		return
-	}
-
-	as, err := db.GetAssignmentByDate(msg.Chat.ID, dutydate)
-	if err != nil {
-		log.Print(err)
-	}
-	if as != nil {
-		log.Printf("%+v %+v", as, as.Operator)
-		sendMessage(
-			bot,
-			msg.Chat.ID,
-			fmt.Sprintf("This day already taken by `%s`", as.Operator.UserName),
+			"Something wrong with date",
 		)
 		return
 	}
@@ -148,9 +129,27 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	if calendar.IsHoliday(dutydate) {
 		answer := fmt.Sprintf(
 			"%s is a holiday. No duty on holidays",
-			dutydate.Format("02-01-2006"),
+			dutydate.Format(utils.DateFormat),
 		)
 		sendMessage(bot, msg.Chat.ID, answer)
+		return
+	}
+
+	if utils.GetToday().After(dutydate) {
+		sendMessage(bot, msg.Chat.ID, "Assignment is possible only for a future date")
+		return
+	}
+
+	as, err := db.GetAssignmentByDate(msg.Chat.ID, &dutydate)
+	if err != nil {
+		log.Print(err)
+	}
+	if as != nil {
+		sendMessage(
+			bot,
+			msg.Chat.ID,
+			fmt.Sprintf("This day already taken by `%s`", as.Operator.UserName),
+		)
 		return
 	}
 
@@ -167,7 +166,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			return
 		}
 	}
-	a := &db.Assignment{ChatID: msg.Chat.ID, DutyDate: dutydate.Unix(), Operator: op}
+	a := &db.Assignment{ChatID: msg.Chat.ID, DutyDate: dutydate, Operator: op}
 	log.Printf("New assignment: %+v", a)
 	err = a.Insert()
 	if err != nil {
@@ -200,7 +199,7 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		tabwriter.TabIndent,
 	)
 	for _, ass := range assignments {
-		dutyDate := time.Unix(ass.DutyDate, 0).Format("Mon Jan 02 2006")
+		dutyDate := ass.DutyDate.Format("Mon Jan 02 2006")
 
 		_, err = fmt.Fprintf(t, "`%s\t%s`\n", ass.Operator.UserName, dutyDate)
 		if err != nil {

@@ -2,6 +2,7 @@ package calendar
 
 import (
 	"context"
+	"dutybot/internal/utils"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -17,9 +18,7 @@ const (
 )
 
 func buildURLForDate(date time.Time) string {
-	var (
-		URLBuilder strings.Builder
-	)
+	var URLBuilder strings.Builder
 
 	URLBuilder.WriteString(calendarURL)
 	URLBuilder.WriteString(strconv.Itoa(date.Year()))
@@ -36,9 +35,12 @@ func buildURLForDate(date time.Time) string {
 /// https://isdayoff.ru/desc/
 func IsHoliday(date time.Time) (isHoliday bool) {
 	isHoliday = date.Weekday() > time.Friday
+	if isHoliday {
+		return
+	}
 
 	client := http.DefaultClient
-	var url string = buildURLForDate(date)
+	url := buildURLForDate(date)
 	req, err := http.NewRequestWithContext(
 		context.TODO(),
 		http.MethodGet,
@@ -53,7 +55,7 @@ func IsHoliday(date time.Time) (isHoliday bool) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer utils.Close(resp.Body)
 
 	respData, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

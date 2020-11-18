@@ -32,41 +32,39 @@ func StartBot() {
 
 		if msg.IsCommand() {
 			go processCommands(bot, msg)
-		} else {
-			sticker := tgbot.NewStickerShare(
-				msg.Chat.ID,
-				"CAACAgIAAxkBAAM3X2xZtzvEBDmu4zcuRYYN8xW7hskAAqsAA5XcYhplKvU6wxFPMRsE",
-			)
-			sticker.ReplyToMessageID = msg.MessageID
-			_, err := bot.Send(sticker)
-			if err != nil {
-				return
-			}
 		}
 	}
 }
 
-func startAnnouncing(bot *tgbot.BotAPI) {
+func announceADuty(bot *tgbot.BotAPI) error {
 	msgFormat := "@%s is on duty today"
-	announce := func() error {
-		ass, err := db.GetAllTodaysOperators()
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, as := range ass {
-			fmt.Printf("Sending %+v\n", as)
-			msg := tgbot.NewMessage(as.ChatID, fmt.Sprintf(msgFormat, as.Operator.UserName))
-			msg.DisableNotification = true
+	ass, err := db.GetAllTodaysOperators()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, as := range ass {
+		fmt.Printf("Sending %+v\n", as)
+		msg := tgbot.NewMessage(as.ChatID, fmt.Sprintf(msgFormat, as.Operator.UserName))
+		msg.DisableNotification = true
 
-			_, err := bot.Send(msg)
-			if err != nil {
-				return err
-			}
+		_, err := bot.Send(msg)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func startAnnouncing(bot *tgbot.BotAPI) {
+	// Use this wrapper as NewTask accepts functions
+	// with signature func () error
+	announce := func() error {
+		if err := announceADuty(bot); err != nil {
+			return err
 		}
 		return nil
 	}
-	t := tasks.NewTask(announce, config.Cfg.DutyShift, config.Cfg.DutyStartAt)
-	t.Start()
+	tasks.NewTask(announce, config.Cfg.DutyShift, config.Cfg.DutyStartAt).Start()
 }
 
 func initBot() (bot *tgbot.BotAPI) {
@@ -75,7 +73,7 @@ func initBot() (bot *tgbot.BotAPI) {
 	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
 	config.ReadConfig()
 
-	err = db.InitDB(config.Cfg.DBConnectString)
+	err = db.Init(config.Cfg.DBDriver, config.Cfg.DBConnectString)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,6 +83,5 @@ func initBot() (bot *tgbot.BotAPI) {
 		log.Fatal(err)
 	}
 	startAnnouncing(bot)
-	// bot.Debug = true
 	return
 }
