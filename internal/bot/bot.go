@@ -4,7 +4,6 @@ import (
 	"dutybot/internal/config"
 	db "dutybot/internal/database"
 	"dutybot/internal/tasks"
-	"fmt"
 	"log"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -36,39 +35,31 @@ func StartBot() {
 	}
 }
 
-func announceADuty(bot *tgbot.BotAPI) error {
-	msgFormat := "@%s is on duty today"
-	ass, err := db.GetAllTodaysOperators()
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, as := range ass {
-		fmt.Printf("Sending %+v\n", as)
-		msg := tgbot.NewMessage(as.ChatID, fmt.Sprintf(msgFormat, as.Operator.UserName))
-		msg.DisableNotification = true
-
-		_, err := bot.Send(msg)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func startAnnouncing(bot *tgbot.BotAPI) {
+func scheduleAnnounceDutyTask(bot *tgbot.BotAPI) {
 	// Use this wrapper as NewTask accepts functions
 	// with signature func () error
-	announce := func() error {
-		if err := announceADuty(bot); err != nil {
-			return err
-		}
-		return nil
+	announce := func() {
+		announceDutyTask(bot)
 	}
-	tasks.NewTask(announce, config.Cfg.DutyShift, config.Cfg.DutyStartAt).Start()
+	_, err := tasks.AddTask(config.Cfg.DutyAnnounceSchedule, announce)
+	if err != nil {
+		log.Fatal("Unable to schedule task: ", err)
+	}
+}
+
+func scheduleFreeSlotsTask(bot *tgbot.BotAPI) {
+	checkFreeSlots := func() {
+		warnAboutFreeSlots(bot)
+	}
+	_, err := tasks.AddTask(config.Cfg.FreeSlotsWarnSchedule, checkFreeSlots)
+	if err != nil {
+		log.Fatal("Unable to schedule task: ", err)
+	}
 }
 
 func initBot() (bot *tgbot.BotAPI) {
 	var err error
+	tasks.InitScheduler()
 
 	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
 	config.ReadConfig()
@@ -82,6 +73,8 @@ func initBot() (bot *tgbot.BotAPI) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	startAnnouncing(bot)
+	scheduleAnnounceDutyTask(bot)
+	scheduleFreeSlotsTask(bot)
+	tasks.Start()
 	return
 }

@@ -1,9 +1,11 @@
 package database
 
 import (
+	"dutybot/internal/calendar"
 	"dutybot/internal/utils"
 	"fmt"
 	"log"
+	"sort"
 	"time"
 )
 
@@ -50,8 +52,9 @@ func (a *Assignment) Delete() (err error) {
 	return
 }
 
+// Return assignment for specified chat and number of weeks ahead
 func GetAssignmentSchedule(weeks int, chatID int64) (as []*Assignment, err error) {
-	hoursInWeek := time.Duration(hoursInDay*daysInWeek) * time.Hour
+	hoursInWeek := time.Duration(utils.HoursInDay*utils.DaysInWeek) * time.Hour
 	today := utils.GetToday()
 	// Get future date "weeks" from now
 	future := today.Add(hoursInWeek * time.Duration(weeks))
@@ -107,21 +110,19 @@ func GetTodaysAssignment(chatID int64) (*Assignment, error) {
 	return GetAssignmentByDate(chatID, utils.GetToday())
 }
 
-func GetAssignmentByDate(chatID int64, date *time.Time) (as *Assignment, err error) {
+func GetAssignmentByDate(chatID int64, date time.Time) (as *Assignment, err error) {
 	row := db.QueryRow(
 		`SELECT id, dutydate, chat_id, operator
          FROM assignments
          WHERE dutydate=? AND chat_id=?`,
-		utils.GetDate(date).Format(utils.DateFormat),
+		utils.GetDate(&date).Format(utils.DateFormat),
 		chatID,
 	)
-	if err != nil {
-		return
-	}
 
+	var dutyDate string
 	op := &Operator{}
 	as = &Assignment{Operator: op}
-	var dutyDate string
+
 	err = row.Scan(&as.ID, &dutyDate, &as.ChatID, &op.ID)
 	if err != nil {
 		err = fmt.Errorf("assignment scan: %s", err)
@@ -139,5 +140,78 @@ func GetAssignmentByDate(chatID int64, date *time.Time) (as *Assignment, err err
 		err = fmt.Errorf("operator get: %s", err)
 		return nil, err
 	}
+	return
+}
+
+// Return all chat ids
+func GetAllChats() ([]int64, error) {
+	res, err := db.Query(`SELECT DISTINCT(chat_id) FROM assignments`)
+	if err != nil {
+		return nil, err
+	}
+	defer utils.Close(res)
+
+	chats := make([]int64, 0)
+
+	for res.Next() {
+		var chatID int64
+
+		err = res.Scan(&chatID)
+		if err != nil {
+			return nil, err
+		}
+
+		chats = append(chats, chatID)
+	}
+	return chats, nil
+}
+
+// Return free duty slots for
+// specified number of weeks
+func GetFreeSlots(weeks int, chatID int64) (freedates []time.Time, err error) {
+	start := utils.GetToday()
+	stop := start.Add(time.Duration(utils.HoursInDay*utils.DaysInWeek*weeks) * time.Hour)
+	dates, err := calendar.GetWorkingDays(start, stop)
+	if err != nil {
+		return
+	}
+
+	res, err := db.Query(`SELECT dutydate FROM assignments
+                                WHERE chat_id=?
+                                AND 
+                                dutydate BETWEEN ? AND ?`,
+		chatID,
+		start.Format(utils.DateFormat),
+		stop.Format(utils.DateFormat),
+	)
+	if err != nil {
+		return
+	}
+	defer utils.Close(res)
+
+	var buf string
+
+	for res.Next() {
+		err = res.Scan(&buf)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+
+		date, err := time.Parse(utils.DateFormat, buf)
+		if err != nil {
+			return nil, err
+		}
+
+		delete(dates, date)
+	}
+
+	for freedate := range dates {
+		freedates = append(freedates, freedate)
+	}
+
+	sort.Slice(freedates, func(i int, j int) bool {
+		return freedates[i].Before(freedates[j])
+	})
 	return
 }

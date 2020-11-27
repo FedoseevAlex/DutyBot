@@ -5,11 +5,6 @@ import (
 	"log"
 )
 
-const (
-	hoursInDay int = 24
-	daysInWeek int = 7
-)
-
 type DBModel interface {
 	Insert() error
 	Delete() error

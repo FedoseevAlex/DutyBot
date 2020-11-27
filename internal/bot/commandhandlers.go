@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"bytes"
 	"dutybot/internal/calendar"
 	db "dutybot/internal/database"
 	"dutybot/internal/utils"
@@ -9,10 +8,13 @@ import (
 	"log"
 	"regexp"
 	"strconv"
-	"text/tabwriter"
 	"time"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
+)
+
+const (
+	DefaultParseMode = "Markdown"
 )
 
 var handlers map[string]func(*tgbot.BotAPI, *tgbot.Message)
@@ -23,6 +25,7 @@ func initHandlers() {
 	handlers["assign"] = assign
 	handlers["show"] = show
 	handlers["operator"] = operator
+	handlers["freeslots"] = freeSlots
 }
 
 func processCommands(bot *tgbot.BotAPI, command *tgbot.Message) {
@@ -43,7 +46,8 @@ func help(bot *tgbot.BotAPI, msg *tgbot.Message) {
 /help - look at this message again
 /operator - tag current duty
 /show [weeks (default=2)] - show duty schedule for some weeks ahead
-/assign [date] - assign yourself for duty. Date should be in format DD-MM-YYYY`
+/assign [date] - assign yourself for duty. Date should be in format DD-MM-YYYY
+/freeslots [weeks default=1] - show free duty slots`
 	answer := tgbot.NewMessage(msg.Chat.ID, helpString)
 	_, err := bot.Send(answer)
 	if err != nil {
@@ -71,8 +75,8 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	}
 }
 
-/// This function assumes that date
-/// is ordered like DD MM YYYY
+// This function assumes that date
+// is ordered like DD MM YYYY
 func parseTime(probablyTime string) (t time.Time, err error) {
 	r := regexp.MustCompile("([0-9]{1,2}).*?([0-9]{1,2}).*?([0-9]{4})")
 	if !r.MatchString(probablyTime) {
@@ -92,26 +96,12 @@ func sendMessage(bot *tgbot.BotAPI, chatID int64, message string) {
 		chatID,
 		message,
 	)
-	msg.ParseMode = "Markdown"
+	msg.ParseMode = DefaultParseMode
 
 	_, err := bot.Send(msg)
 	if err != nil {
 		log.Print(err)
 	}
-}
-
-func Today() time.Time {
-	y, m, d := time.Now().Date()
-	return time.Date(
-		y,
-		m,
-		d,
-		0,
-		0,
-		0,
-		0,
-		time.UTC,
-	)
 }
 
 func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
@@ -140,7 +130,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		return
 	}
 
-	as, err := db.GetAssignmentByDate(msg.Chat.ID, &dutydate)
+	as, err := db.GetAssignmentByDate(msg.Chat.ID, dutydate)
 	if err != nil {
 		log.Print(err)
 	}
@@ -176,6 +166,38 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	show(bot, msg)
 }
 
+func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) {
+	weeks, err := strconv.Atoi(msg.CommandArguments())
+	if err != nil {
+		weeks = 1
+	}
+
+	slots, err := db.GetFreeSlots(weeks, msg.Chat.ID)
+	if err != nil {
+		log.Print(err)
+	}
+	freeSlots := utils.NewPrettyTable()
+	for _, slot := range slots {
+		freeSlots.AddRow([]string{slot.Format(utils.HumanDateFormat)})
+		if err != nil {
+			log.Print(err)
+			return
+		}
+	}
+	table, err := freeSlots.String()
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	reply := tgbot.NewMessage(msg.Chat.ID, fmt.Sprintf("```\n%s\n```", table))
+	reply.ParseMode = DefaultParseMode
+	_, err = bot.Send(reply)
+	if err != nil {
+		log.Print(err)
+	}
+}
+
 func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	weeks, err := strconv.Atoi(msg.CommandArguments())
 	if err != nil {
@@ -188,33 +210,24 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		return
 	}
 
-	buf := make([]byte, 0)
-	b := bytes.NewBuffer(buf)
-	t := tabwriter.NewWriter(
-		b,
-		0,
-		4,
-		2,
-		' ',
-		tabwriter.TabIndent,
-	)
-	for _, ass := range assignments {
-		dutyDate := ass.DutyDate.Format("Mon Jan 02 2006")
+	schedule := utils.NewPrettyTable()
 
-		_, err = fmt.Fprintf(t, "`%s\t%s`\n", ass.Operator.UserName, dutyDate)
-		if err != nil {
-			log.Print(err)
-			return
-		}
+	for _, ass := range assignments {
+		dutyDate := ass.DutyDate.Format(utils.HumanDateFormat)
+		schedule.AddRow([]string{ass.Operator.UserName, dutyDate})
 	}
-	err = t.Flush()
+	table, err := schedule.String()
 	if err != nil {
-		log.Print(err)
+		sendMessage(
+			bot,
+			msg.Chat.ID,
+			fmt.Sprintf("Tabulation error: %s", err.Error()),
+		)
 		return
 	}
 
-	reply := tgbot.NewMessage(msg.Chat.ID, b.String())
-	reply.ParseMode = "Markdown"
+	reply := tgbot.NewMessage(msg.Chat.ID, fmt.Sprintf("```\n%s\n```", table))
+	reply.ParseMode = DefaultParseMode
 	_, err = bot.Send(reply)
 	if err != nil {
 		log.Print(err)

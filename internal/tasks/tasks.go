@@ -1,76 +1,29 @@
 package tasks
 
 import (
-	"dutybot/internal/config"
-	"log"
 	"time"
+
+	"github.com/robfig/cron/v3"
 )
 
-type Task struct {
-	StartTime config.Clock
-	doneChan  chan bool
-	Period    time.Duration
-	Ticker    *time.Ticker
-	Job       func() error
+var scheduler *cron.Cron
+
+func InitScheduler() {
+	scheduler = cron.New(cron.WithLocation(time.UTC))
 }
 
-func NewTask(job func() error, period time.Duration, startAt config.Clock) *Task {
-	t := &Task{
-		StartTime: startAt,
-		Period:    period,
-		Job:       job,
-		doneChan:  make(chan bool),
-	}
-	return t
+func Start() {
+	scheduler.Start()
 }
 
-func getDurationUntil(point config.Clock) time.Duration {
-	now := time.Now()
-	target := time.Date(
-		now.Year(),
-		now.Month(),
-		now.Day(),
-		point.Hour(),
-		point.Minute(),
-		point.Second(),
-		0,
-		now.Location())
-
-	if target.Before(now) {
-		target = target.Add(config.Cfg.DutyShift)
-	}
-	log.Println("Will start on", target)
-	return time.Until(target)
+func Stop() {
+	scheduler.Stop()
 }
 
-func (t *Task) Start() {
-	f := func() {
-		dur := getDurationUntil(t.StartTime)
-		<-time.After(dur)
-		t.Ticker = time.NewTicker(t.Period)
-		for {
-			err := t.Job()
-			if err != nil {
-				log.Fatal("Goroutine failed with:", err)
-			}
-
-			select {
-			case stop := <-t.doneChan:
-				if stop {
-					log.Println("Task was stopped")
-					return
-				}
-			case <-t.Ticker.C:
-				continue
-			}
-		}
+func AddTask(period string, job func()) (cron.EntryID, error) {
+	entryID, err := scheduler.AddFunc(period, job)
+	if err != nil {
+		return -1, err
 	}
-	go f()
-}
-
-func (t *Task) Stop() {
-	if t.Ticker != nil {
-		t.Ticker.Stop()
-	}
-	t.doneChan <- true
+	return entryID, nil
 }
