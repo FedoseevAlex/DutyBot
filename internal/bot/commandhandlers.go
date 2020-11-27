@@ -47,7 +47,12 @@ func help(bot *tgbot.BotAPI, msg *tgbot.Message) {
 /operator - tag current duty
 /show [weeks (default=2)] - show duty schedule for some weeks ahead
 /assign [date] - assign yourself for duty. Date should be in format DD-MM-YYYY
-/freeslots [weeks default=1] - show free duty slots`
+/freeslots [weeks default=1] - show free duty slots
+
+Found a bug? Want some features?
+Feel free to make an issue:
+https://github.com/FedoseevAlex/DutyBot/issues
+`
 	answer := tgbot.NewMessage(msg.Chat.ID, helpString)
 	_, err := bot.Send(answer)
 	if err != nil {
