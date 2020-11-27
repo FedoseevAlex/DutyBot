@@ -13,7 +13,6 @@ USER $APP_USER
 COPY ./ $APP_HOME
 
 RUN go mod download
-RUN go mod verify
 RUN go build -o dutybot.app ./cmd/dutybot/main.go
 
 FROM alpine:latest
