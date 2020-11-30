@@ -2,37 +2,61 @@ package bot
 
 import (
 	"dutybot/internal/config"
-	db "dutybot/internal/database"
 	"dutybot/internal/tasks"
+	"dutybot/internal/utils"
+	"encoding/json"
+	"io/ioutil"
 	"log"
+	"net/http"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
+
+	db "dutybot/internal/database"
 )
 
-func StartBot() {
-	bot := initBot()
+var bot *tgbot.BotAPI
 
-	u := tgbot.NewUpdate(0)
-	u.Timeout = 60
-	updates, err := bot.GetUpdatesChan(u)
+func handleRequests(_ http.ResponseWriter, req *http.Request) {
+	defer utils.Close(req.Body)
+
+	bodyBytes, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Failed to read body contents: ", err)
+		return
 	}
-	initHandlers()
 
-	for update := range updates {
-		var msg *tgbot.Message
+	var update tgbot.Update
+	var msg *tgbot.Message
 
-		if update.EditedMessage != nil {
-			msg = update.EditedMessage
-		} else {
-			msg = update.Message
-		}
-
-		if msg.IsCommand() {
-			go processCommands(bot, msg)
-		}
+	err = json.Unmarshal(bodyBytes, &update)
+	if err != nil {
+		log.Println("Unable to unmarshal json update from telegram: ", err)
+		return
 	}
+
+	if update.EditedMessage != nil {
+		msg = update.EditedMessage
+	} else {
+		msg = update.Message
+	}
+
+	if msg.IsCommand() {
+		processCommands(bot, msg)
+	}
+}
+
+func StartBotHook() {
+	initBot()
+
+	http.HandleFunc("/"+bot.Token, handleRequests)
+
+	err := http.ListenAndServeTLS(
+		"0.0.0.0:8443",
+		"/etc/dutybot/pub.pem",
+		"/etc/dutybot/priv.key",
+		nil,
+	)
+	log.Fatal("Unable to start https server: ", err)
 }
 
 func scheduleAnnounceDutyTask(bot *tgbot.BotAPI) {
@@ -57,14 +81,14 @@ func scheduleFreeSlotsTask(bot *tgbot.BotAPI) {
 	}
 }
 
-func initBot() (bot *tgbot.BotAPI) {
-	var err error
+func initBot() {
 	tasks.InitScheduler()
+	initHandlers()
 
 	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
 	config.ReadConfig()
 
-	err = db.Init(config.Cfg.DBDriver, config.Cfg.DBConnectString)
+	err := db.Init(config.Cfg.DBDriver, config.Cfg.DBConnectString)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -76,5 +100,4 @@ func initBot() (bot *tgbot.BotAPI) {
 	scheduleAnnounceDutyTask(bot)
 	scheduleFreeSlotsTask(bot)
 	tasks.Start()
-	return
 }

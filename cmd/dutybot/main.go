@@ -8,5 +8,5 @@ import (
 )
 
 func main() {
-	bot.StartBot()
+	bot.StartBotHook()
 }
