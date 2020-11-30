@@ -10,7 +10,7 @@ type TestData struct {
 	Address     string
 	Endpoint    []string
 	QueryParams map[string]string
-	Answer      string
+	Answers     []string
 }
 
 func TestBuildURLForDate(t *testing.T) {
@@ -19,7 +19,7 @@ func TestBuildURLForDate(t *testing.T) {
 			Address:     "https://someaddress.ru",
 			Endpoint:    nil,
 			QueryParams: nil,
-			Answer:      "https://someaddress.ru",
+			Answers:     []string{"https://someaddress.ru"},
 		},
 		{
 			Address: "https://someaddress.ru",
@@ -28,7 +28,7 @@ func TestBuildURLForDate(t *testing.T) {
 				"getdata",
 			},
 			QueryParams: nil,
-			Answer:      "https://someaddress.ru/api/getdata",
+			Answers:     []string{"https://someaddress.ru/api/getdata"},
 		},
 		{
 			Address: "https://someaddress.ru",
@@ -40,7 +40,10 @@ func TestBuildURLForDate(t *testing.T) {
 				"param1": "value1",
 				"param2": "value2",
 			},
-			Answer: "https://someaddress.ru/api/getdata?param1=value1&param2=value2",
+			Answers: []string{
+				"https://someaddress.ru/api/getdata?param1=value1&param2=value2",
+				"https://someaddress.ru/api/getdata?param2=value2&param1=value1",
+			},
 		},
 		{
 			Address:  "https://someaddress.ru",
@@ -49,10 +52,13 @@ func TestBuildURLForDate(t *testing.T) {
 				"param1": "value1",
 				"param2": "value2",
 			},
-			Answer: "https://someaddress.ru?param1=value1&param2=value2",
+			Answers: []string{
+				"https://someaddress.ru?param1=value1&param2=value2",
+				"https://someaddress.ru?param2=value2&param1=value1",
+			},
 		},
 	}
 	for _, test := range datesAnswers {
-		assert.Equal(t, buildQueryString(test.Address, test.Endpoint, test.QueryParams), test.Answer)
+		assert.Contains(t, test.Answers, buildQueryString(test.Address, test.Endpoint, test.QueryParams))
 	}
 }

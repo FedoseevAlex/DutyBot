@@ -27,5 +27,6 @@ WORKDIR $APP_HOME
 
 COPY --chown=0:0 --from=builder $APP_HOME/dutybot.app $APP_HOME
 
+EXPOSE 8443
 USER $APP_USER
 CMD ["./dutybot.app"]
