@@ -14,7 +14,10 @@ import (
 )
 
 const (
-	DefaultParseMode = "Markdown"
+	MarkdownParseMode   = "MarkdownV2"
+	FreeslotsThreshold  = 10
+	DefaultFreslotWeeks = 1
+	NoParseMode         = ""
 )
 
 var handlers map[string]func(*tgbot.BotAPI, *tgbot.Message)
@@ -96,12 +99,15 @@ func parseTime(probablyTime string) (t time.Time, err error) {
 	return
 }
 
-func sendMessage(bot *tgbot.BotAPI, chatID int64, message string) {
+func sendMessage(bot *tgbot.BotAPI, chatID int64, message string, parseMode string) {
 	msg := tgbot.NewMessage(
 		chatID,
 		message,
 	)
-	msg.ParseMode = DefaultParseMode
+
+	if parseMode != NoParseMode {
+		msg.ParseMode = parseMode
+	}
 
 	_, err := bot.Send(msg)
 	if err != nil {
@@ -113,25 +119,21 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	dutydate, err := parseTime(msg.CommandArguments())
 	if err != nil {
 		log.Print(err)
-		sendMessage(
-			bot,
-			msg.Chat.ID,
-			"Something wrong with date",
-		)
+		sendMessage(bot, msg.Chat.ID, "Something wrong with date", NoParseMode)
 		return
 	}
 
 	if calendar.IsHoliday(dutydate) {
 		answer := fmt.Sprintf(
-			"%s is a holiday. No duty on holidays",
+			"`%s` is a holiday. No duty on holidays",
 			dutydate.Format(utils.DateFormat),
 		)
-		sendMessage(bot, msg.Chat.ID, answer)
+		sendMessage(bot, msg.Chat.ID, answer, MarkdownParseMode)
 		return
 	}
 
 	if utils.GetToday().After(dutydate) {
-		sendMessage(bot, msg.Chat.ID, "Assignment is possible only for a future date")
+		sendMessage(bot, msg.Chat.ID, "Assignment is possible only for a future date", NoParseMode)
 		return
 	}
 
@@ -144,6 +146,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			bot,
 			msg.Chat.ID,
 			fmt.Sprintf("This day already taken by `%s`", as.Operator.UserName),
+			NoParseMode,
 		)
 		return
 	}
@@ -171,16 +174,45 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	show(bot, msg)
 }
 
-func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) {
-	weeks, err := strconv.Atoi(msg.CommandArguments())
+func checkWeeks(weekArgument string) (int, error) {
+	var weeks int
+
+	if weekArgument == "" {
+		return DefaultFreslotWeeks, nil
+	}
+
+	weeks, err := strconv.Atoi(weekArgument)
 	if err != nil {
-		weeks = 1
+		return 0, fmt.Errorf("seems that %s is not a number", weekArgument)
+	}
+
+	if weeks > FreeslotsThreshold {
+		return 0, fmt.Errorf("in the grim darkness of the far future there is only war")
+	}
+
+	if weeks <= 0 {
+		return 0, fmt.Errorf("some serious QA here")
+	}
+	return weeks, nil
+}
+
+func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) {
+	weeks, err := checkWeeks(msg.CommandArguments())
+	if err != nil {
+		sendMessage(
+			bot,
+			msg.Chat.ID,
+			err.Error(),
+			NoParseMode,
+		)
+		return
 	}
 
 	slots, err := db.GetFreeSlots(weeks, msg.Chat.ID)
 	if err != nil {
 		log.Print(err)
 	}
+
 	freeSlots := utils.NewPrettyTable()
 	for _, slot := range slots {
 		freeSlots.AddRow([]string{slot.Format(utils.HumanDateFormat)})
@@ -195,23 +227,24 @@ func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		return
 	}
 
-	reply := tgbot.NewMessage(msg.Chat.ID, fmt.Sprintf("```\n%s\n```", table))
-	reply.ParseMode = DefaultParseMode
-	_, err = bot.Send(reply)
-	if err != nil {
-		log.Print(err)
-	}
+	sendMessage(bot, msg.Chat.ID, fmt.Sprintf("```\n%s\n```", table), MarkdownParseMode)
 }
 
 func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
-	weeks, err := strconv.Atoi(msg.CommandArguments())
+	weeks, err := checkWeeks(msg.CommandArguments())
 	if err != nil {
-		weeks = 2
+		sendMessage(
+			bot,
+			msg.Chat.ID,
+			err.Error(),
+			NoParseMode,
+		)
+		return
 	}
 
 	assignments, err := db.GetAssignmentSchedule(weeks, msg.Chat.ID)
 	if err != nil {
-		sendMessage(bot, msg.Chat.ID, "Couldn't get assignments.")
+		sendMessage(bot, msg.Chat.ID, "Couldn't get assignments.", NoParseMode)
 		return
 	}
 
@@ -227,14 +260,10 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			bot,
 			msg.Chat.ID,
 			fmt.Sprintf("Tabulation error: %s", err.Error()),
+			NoParseMode,
 		)
 		return
 	}
 
-	reply := tgbot.NewMessage(msg.Chat.ID, fmt.Sprintf("```\n%s\n```", table))
-	reply.ParseMode = DefaultParseMode
-	_, err = bot.Send(reply)
-	if err != nil {
-		log.Print(err)
-	}
+	sendMessage(bot, msg.Chat.ID, fmt.Sprintf("```\n%s\n```", table), MarkdownParseMode)
 }

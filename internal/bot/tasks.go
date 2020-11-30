@@ -83,7 +83,7 @@ func warnAboutFreeSlots(bot *tgbot.BotAPI) {
 
 		msg := tgbot.NewMessage(
 			chatID,
-			fmt.Sprintf("Free slots still available! \n%s", outputSlots),
+			fmt.Sprintf("Free slots still available!\n```\n%s\n```", outputSlots),
 		)
 
 		_, err = bot.Send(msg)

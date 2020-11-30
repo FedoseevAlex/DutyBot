@@ -203,10 +203,10 @@ func GetFreeSlots(weeks int, chatID int64) (freedates []time.Time, err error) {
 			return nil, err
 		}
 
-		delete(dates, date)
+		dates.Remove(date)
 	}
 
-	for freedate := range dates {
+	for freedate := range *dates {
 		freedates = append(freedates, freedate)
 	}
 
