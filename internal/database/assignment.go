@@ -110,12 +110,12 @@ func GetTodaysAssignment(chatID int64) (*Assignment, error) {
 	return GetAssignmentByDate(chatID, utils.GetToday())
 }
 
-func GetAssignmentByDate(chatID int64, date time.Time) (as *Assignment, err error) {
+func GetAssignmentByDate(chatID int64, date *time.Time) (as *Assignment, err error) {
 	row := db.QueryRow(
 		`SELECT id, dutydate, chat_id, operator
          FROM assignments
          WHERE dutydate=? AND chat_id=?`,
-		utils.GetDate(&date).Format(utils.DateFormat),
+		utils.GetDate(date).Format(utils.DateFormat),
 		chatID,
 	)
 
@@ -171,7 +171,7 @@ func GetAllChats() ([]int64, error) {
 func GetFreeSlots(weeks int, chatID int64) (freedates []time.Time, err error) {
 	start := utils.GetToday()
 	stop := start.Add(time.Duration(utils.HoursInDay*utils.DaysInWeek*weeks) * time.Hour)
-	dates, err := calendar.GetWorkingDays(start, stop)
+	dates, err := calendar.GetWorkingDays(*start, stop)
 	if err != nil {
 		return
 	}

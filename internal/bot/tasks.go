@@ -2,16 +2,10 @@ package bot
 
 import (
 	db "dutybot/internal/database"
-	"dutybot/internal/utils"
 	"fmt"
 	"log"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
-)
-
-const (
-	// Default number of weeks to check for free slots
-	freeSlotsWeeks int = 1
 )
 
 func announceDutyTask(bot *tgbot.BotAPI) {
@@ -27,18 +21,13 @@ func announceDutyTask(bot *tgbot.BotAPI) {
 	}
 
 	for _, as := range ass {
-		fmt.Printf("Sending %+v\n", as)
-		msg := tgbot.NewMessage(as.ChatID, fmt.Sprintf(msgFormat, as.Operator.UserName))
-		msg.DisableNotification = true
-
-		_, err := bot.Send(msg)
-		if err != nil {
-			log.Println(
-				"announceDutyTask job failed to send message to telegram: ",
-				err,
-			)
-			return
-		}
+		log.Printf("Sending %+v\n", as)
+		sendMessage(
+			bot,
+			as.ChatID,
+			fmt.Sprintf(msgFormat, as.Operator.UserName),
+			NoParseMode,
+		)
 	}
 }
 
@@ -55,24 +44,7 @@ func warnAboutFreeSlots(bot *tgbot.BotAPI) {
 	}
 
 	for _, chatID := range chats {
-		slots, err := db.GetFreeSlots(freeSlotsWeeks, chatID)
-		if err != nil {
-			log.Println(
-				"warnAboutFreeSlots job failed to get free slots: ",
-				err,
-			)
-			return
-		}
-
-		if len(slots) == 0 {
-			continue
-		}
-
-		freeslots := utils.NewPrettyTable()
-		for _, slot := range slots {
-			freeslots.AddRow([]string{slot.Format(utils.HumanDateFormat)})
-		}
-		outputSlots, err := freeslots.String()
+		outputSlots, err := getFreeSlotsTable(chatID, DefaultFreslotWeeks)
 		if err != nil {
 			log.Println(
 				"warnAboutFreeSlots job failed to tabulate free slots: ",
@@ -81,18 +53,15 @@ func warnAboutFreeSlots(bot *tgbot.BotAPI) {
 			return
 		}
 
-		msg := tgbot.NewMessage(
-			chatID,
-			fmt.Sprintf("Free slots still available!\n```\n%s\n```", outputSlots),
-		)
-
-		_, err = bot.Send(msg)
-		if err != nil {
-			log.Println(
-				"warnAboutFreeSlots job failed to send message to telegram: ",
-				err,
-			)
-			return
+		if outputSlots == "" {
+			continue
 		}
+
+		sendMessage(
+			bot,
+			chatID,
+			fmt.Sprintf("Free slots still available!\n%s\n", outputSlots),
+			NoParseMode,
+		)
 	}
 }
