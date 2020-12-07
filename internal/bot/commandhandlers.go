@@ -17,6 +17,7 @@ const (
 	MarkdownParseMode   = "MarkdownV2"
 	FreeslotsThreshold  = 10
 	DefaultFreslotWeeks = 1
+	DefaultShowWeeks    = 1
 	NoParseMode         = ""
 )
 
@@ -31,17 +32,17 @@ func initHandlers() {
 	handlers["freeslots"] = freeSlots
 }
 
-func processCommands(bot *tgbot.BotAPI, command *tgbot.Message) {
-	handler, ok := handlers[command.Command()]
+func processCommands(bot *tgbot.BotAPI, msg *tgbot.Message) {
+	handler, ok := handlers[msg.Command()]
 	if !ok {
-		msg := tgbot.NewMessage(command.Chat.ID, "Unknown command. Try /help")
-		_, err := bot.Send(msg)
+		answer := tgbot.NewMessage(msg.Chat.ID, "Unknown command. Try /help")
+		_, err := bot.Send(answer)
 		if err != nil {
 			log.Print(err)
 		}
 		return
 	}
-	handler(bot, command)
+	handler(bot, msg)
 }
 
 func help(bot *tgbot.BotAPI, msg *tgbot.Message) {
@@ -85,18 +86,17 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 
 // This function assumes that date
 // is ordered like DD MM YYYY
-func parseTime(probablyTime string) (t time.Time, err error) {
+func parseTime(probablyTime string) (*time.Time, error) {
 	r := regexp.MustCompile("([0-9]{1,2}).*?([0-9]{1,2}).*?([0-9]{4})")
 	if !r.MatchString(probablyTime) {
-		err = fmt.Errorf("'%s' is not look like DD MM YYYY", probablyTime)
-		return
+		return nil, fmt.Errorf("'%s' is not look like DD MM YYYY", probablyTime)
 	}
 	parts := r.FindAllStringSubmatch(probablyTime, 1)[0]
 	date := fmt.Sprintf("%02s", parts[1])
 	month := fmt.Sprintf("%02s", parts[2])
 	year := parts[3]
-	t, err = time.Parse(utils.DateFormat, fmt.Sprintf("%s-%s-%s", year, month, date))
-	return
+	t, err := time.Parse(utils.DateFormat, fmt.Sprintf("%s-%s-%s", year, month, date))
+	return &t, err
 }
 
 func sendMessage(bot *tgbot.BotAPI, chatID int64, message string, parseMode string) {
@@ -115,25 +115,33 @@ func sendMessage(bot *tgbot.BotAPI, chatID int64, message string, parseMode stri
 	}
 }
 
-func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
-	dutydate, err := parseTime(msg.CommandArguments())
+func checkDate(possibleDate string) (*time.Time, error) {
+	dutydate, err := parseTime(possibleDate)
 	if err != nil {
 		log.Print(err)
-		sendMessage(bot, msg.Chat.ID, "Something wrong with date", NoParseMode)
-		return
+		return nil, fmt.Errorf("something wrong with date")
 	}
 
 	if calendar.IsHoliday(dutydate) {
-		answer := fmt.Sprintf(
-			"`%s` is a holiday. No duty on holidays",
+		answer := fmt.Errorf(
+			"'%s' is a holiday. No duty on holidays",
 			dutydate.Format(utils.DateFormat),
 		)
-		sendMessage(bot, msg.Chat.ID, answer, MarkdownParseMode)
-		return
+		return nil, answer
 	}
 
-	if utils.GetToday().After(dutydate) {
-		sendMessage(bot, msg.Chat.ID, "Assignment is possible only for a future date", NoParseMode)
+	if utils.GetToday().After(*dutydate) {
+		return nil, fmt.Errorf("assignment is possible only for a future date")
+	}
+
+	return dutydate, nil
+}
+
+func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
+	dutydate, err := checkDate(msg.CommandArguments())
+	if err != nil {
+		log.Print(err)
+		sendMessage(bot, msg.Chat.ID, err.Error(), NoParseMode)
 		return
 	}
 
@@ -164,14 +172,25 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			return
 		}
 	}
-	a := &db.Assignment{ChatID: msg.Chat.ID, DutyDate: dutydate, Operator: op}
+
+	a := &db.Assignment{ChatID: msg.Chat.ID, DutyDate: *dutydate, Operator: op}
 	log.Printf("New assignment: %+v", a)
 	err = a.Insert()
 	if err != nil {
 		log.Print(err)
 		return
 	}
-	show(bot, msg)
+
+	assignments, err := getAssignmentsTable(msg.Chat.ID, DefaultShowWeeks)
+	if err != nil {
+		sendMessage(bot, msg.Chat.ID, err.Error(), NoParseMode)
+	}
+	sendMessage(
+		bot,
+		msg.Chat.ID,
+		fmt.Sprintf("```\n%s\n```", assignments),
+		MarkdownParseMode,
+	)
 }
 
 func checkWeeks(weekArgument string) (int, error) {
@@ -208,26 +227,35 @@ func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		return
 	}
 
-	slots, err := db.GetFreeSlots(weeks, msg.Chat.ID)
-	if err != nil {
-		log.Print(err)
-	}
-
-	freeSlots := utils.NewPrettyTable()
-	for _, slot := range slots {
-		freeSlots.AddRow([]string{slot.Format(utils.HumanDateFormat)})
-		if err != nil {
-			log.Print(err)
-			return
-		}
-	}
-	table, err := freeSlots.String()
+	table, err := getFreeSlotsTable(msg.Chat.ID, weeks)
 	if err != nil {
 		log.Print(err)
 		return
 	}
 
-	sendMessage(bot, msg.Chat.ID, fmt.Sprintf("```\n%s\n```", table), MarkdownParseMode)
+	sendMessage(bot, msg.Chat.ID, table, NoParseMode)
+}
+
+func getFreeSlotsTable(chatID int64, weeks int) (string, error) {
+	slots, err := db.GetFreeSlots(weeks, chatID)
+	if err != nil {
+		log.Print(err)
+		return "", err
+	}
+
+	if len(slots) == 0 {
+		return "", nil
+	}
+
+	freeSlots := utils.NewPrettyTable()
+	for _, slot := range slots {
+		freeSlots.AddRow([]string{"/assign", slot.Format(utils.AssignDateFormat)})
+	}
+	table, err := freeSlots.String()
+	if err != nil {
+		return "", err
+	}
+	return table, nil
 }
 
 func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
@@ -242,19 +270,7 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		return
 	}
 
-	assignments, err := db.GetAssignmentSchedule(weeks, msg.Chat.ID)
-	if err != nil {
-		sendMessage(bot, msg.Chat.ID, "Couldn't get assignments.", NoParseMode)
-		return
-	}
-
-	schedule := utils.NewPrettyTable()
-
-	for _, ass := range assignments {
-		dutyDate := ass.DutyDate.Format(utils.HumanDateFormat)
-		schedule.AddRow([]string{ass.Operator.UserName, dutyDate})
-	}
-	table, err := schedule.String()
+	table, err := getAssignmentsTable(msg.Chat.ID, weeks)
 	if err != nil {
 		sendMessage(
 			bot,
@@ -266,4 +282,23 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	}
 
 	sendMessage(bot, msg.Chat.ID, fmt.Sprintf("```\n%s\n```", table), MarkdownParseMode)
+}
+
+func getAssignmentsTable(chatID int64, weeks int) (string, error) {
+	assignments, err := db.GetAssignmentSchedule(weeks, chatID)
+	if err != nil {
+		return "", fmt.Errorf("couldn't get assignments")
+	}
+
+	schedule := utils.NewPrettyTable()
+
+	for _, ass := range assignments {
+		dutyDate := ass.DutyDate.Format(utils.HumanDateFormat)
+		schedule.AddRow([]string{ass.Operator.UserName, dutyDate})
+	}
+	table, err := schedule.String()
+	if err != nil {
+		return "", err
+	}
+	return table, nil
 }

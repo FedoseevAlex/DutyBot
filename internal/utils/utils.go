@@ -11,15 +11,24 @@ import (
 )
 
 const (
-	DateFormat      string        = "2006-01-02"
-	HumanDateFormat string        = "Mon Jan 02 2006"
-	HoursInDay      int           = 24
-	DaysInWeek      int           = 7
-	DayDuration     time.Duration = time.Duration(HoursInDay) * time.Hour
+	DateFormat       string        = "2006-01-02"
+	HumanDateFormat  string        = "Mon Jan 02 2006"
+	AssignDateFormat string        = "02-01-2006"
+	HoursInDay       int           = 24
+	DaysInWeek       int           = 7
+	DayDuration      time.Duration = time.Duration(HoursInDay) * time.Hour
+	defaultMinwidth  int           = 0
+	defaultTabwidth  int           = 4
+	defaultPadding   int           = 2
+	defaultPadchar   byte          = ' '
 )
 
 type PrettyTable struct {
-	rows [][]string
+	rows     [][]string
+	Minwidth int
+	Tabwidth int
+	Padding  int
+	Padchar  byte
 }
 
 func (pt *PrettyTable) String() (string, error) {
@@ -27,10 +36,10 @@ func (pt *PrettyTable) String() (string, error) {
 	b := bytes.NewBuffer(buf)
 	t := tabwriter.NewWriter(
 		b,
-		0,
-		4,
-		2,
-		' ',
+		pt.Minwidth,
+		pt.Tabwidth,
+		pt.Padding,
+		pt.Padchar,
 		tabwriter.TabIndent,
 	)
 
@@ -54,15 +63,20 @@ func (pt *PrettyTable) AddRow(row []string) {
 }
 
 func NewPrettyTable() *PrettyTable {
-	return &PrettyTable{}
+	return &PrettyTable{
+		Minwidth: defaultMinwidth,
+		Tabwidth: defaultTabwidth,
+		Padding:  defaultPadding,
+		Padchar:  defaultPadchar,
+	}
 }
 
 // This function returns time.Time object
 // representing current date.
-func GetToday() time.Time {
+func GetToday() *time.Time {
 	y, m, d := time.Now().Date()
 	today := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
-	return today
+	return &today
 }
 
 // This function returns time.Time object
