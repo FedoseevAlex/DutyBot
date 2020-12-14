@@ -48,7 +48,9 @@ func (a *Assignment) Delete() (err error) {
 		"DELETE FROM assignments WHERE id=?",
 		a.ID,
 	)
-	log.Print(err)
+	if err != nil {
+		log.Println(err)
+	}
 	return
 }
 

@@ -2,7 +2,6 @@ package bot
 
 import (
 	"dutybot/internal/calendar"
-	db "dutybot/internal/database"
 	"dutybot/internal/utils"
 	"fmt"
 	"log"
@@ -11,6 +10,8 @@ import (
 	"time"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
+
+	db "dutybot/internal/database"
 )
 
 const (
@@ -30,6 +31,7 @@ func initHandlers() {
 	handlers["show"] = show
 	handlers["operator"] = operator
 	handlers["freeslots"] = freeSlots
+	handlers["reset"] = resetAssign
 }
 
 func processCommands(bot *tgbot.BotAPI, msg *tgbot.Message) {
@@ -50,7 +52,8 @@ func help(bot *tgbot.BotAPI, msg *tgbot.Message) {
 /help - look at this message again
 /operator - tag current duty
 /show [weeks (default=2)] - show duty schedule for some weeks ahead
-/assign [date] - assign yourself for duty. Date should be in format DD-MM-YYYY
+/assign date - assign yourself for duty. Date should be in format DD-MM-YYYY
+/reset [date default=Today] - clear specified date from assignments
 /freeslots [weeks default=1] - show free duty slots
 
 Found a bug? Want some features?
@@ -119,7 +122,7 @@ func checkDate(possibleDate string) (*time.Time, error) {
 	dutydate, err := parseTime(possibleDate)
 	if err != nil {
 		log.Print(err)
-		return nil, fmt.Errorf("something wrong with date")
+		return nil, err
 	}
 
 	if calendar.IsHoliday(dutydate) {
@@ -174,7 +177,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	}
 
 	a := &db.Assignment{ChatID: msg.Chat.ID, DutyDate: *dutydate, Operator: op}
-	log.Printf("New assignment: %+v", a)
+	log.Printf("new assignment: %+v", a)
 	err = a.Insert()
 	if err != nil {
 		log.Print(err)
@@ -190,6 +193,57 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		msg.Chat.ID,
 		fmt.Sprintf("```\n%s\n```", assignments),
 		MarkdownParseMode,
+	)
+}
+
+func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) {
+	var err error
+	dutydate := utils.GetToday()
+
+	if msg.CommandArguments() != "" {
+		dutydate, err = checkDate(msg.CommandArguments())
+		if err != nil {
+			log.Println(err)
+			sendMessage(bot, msg.Chat.ID, err.Error(), NoParseMode)
+			return
+		}
+	}
+
+	as, err := db.GetAssignmentByDate(msg.Chat.ID, dutydate)
+	if err != nil {
+		sendMessage(
+			bot,
+			msg.Chat.ID,
+			fmt.Sprintf(
+				"no assignments for %s",
+				dutydate.Format(utils.AssignDateFormat),
+			),
+			NoParseMode,
+		)
+		return
+	}
+
+	err = as.Delete()
+	if err != nil {
+		log.Print(err)
+		sendMessage(
+			bot,
+			msg.Chat.ID,
+			"failed to reset assignments",
+			NoParseMode,
+		)
+		return
+	}
+
+	sendMessage(
+		bot,
+		msg.Chat.ID,
+		fmt.Sprintf(
+			"@%s is unassigned from %s",
+			as.Operator.UserName,
+			dutydate.Format(utils.AssignDateFormat),
+		),
+		NoParseMode,
 	)
 }
 
