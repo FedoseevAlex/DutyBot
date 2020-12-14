@@ -17,6 +17,14 @@ type Config struct {
 	DBDriver        string `yaml:"db_driver"`
 	// Telegram bot token
 	BotToken string `yaml:"bot_token"`
+	// Logfile path
+	LogPath string `yaml:"log_path"`
+	// Web hook listen address
+	ListenAddr string `yaml:"listen_addr"`
+	// Certificate file path
+	CertPath string `yaml:"cert_path"`
+	// Key file path
+	KeyPath string `yaml:"key_path"`
 
 	// TODO: Candidates to per chat settings
 	// Cron pattern to notify current Duty

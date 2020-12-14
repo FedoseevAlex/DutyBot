@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
 
@@ -46,17 +47,35 @@ func handleRequests(_ http.ResponseWriter, req *http.Request) {
 }
 
 func StartBotHook() {
-	initBot()
+	config.ReadConfig()
+
+	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
+
+	logfile, err := os.OpenFile(config.Cfg.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY|os.O_SYNC, 0o666)
+	if err != nil {
+		log.Println("Unable to open a log file: ", config.Cfg.LogPath)
+	} else {
+		defer utils.Close(logfile)
+		log.SetOutput(logfile)
+	}
+
+	err = initBot()
+	if err != nil {
+		log.Println("Unable to init bot: ", err)
+		return
+	}
 
 	http.HandleFunc("/"+bot.Token, handleRequests)
 
-	err := http.ListenAndServeTLS(
-		"0.0.0.0:8443",
-		"/etc/dutybot/pub.pem",
-		"/etc/dutybot/priv.key",
+	err = http.ListenAndServeTLS(
+		config.Cfg.ListenAddr,
+		config.Cfg.CertPath,
+		config.Cfg.KeyPath,
 		nil,
 	)
-	log.Fatal("Unable to start https server: ", err)
+	if err != nil {
+		log.Println("Unable to start https server: ", err)
+	}
 }
 
 func scheduleAnnounceDutyTask(bot *tgbot.BotAPI) {
@@ -81,23 +100,23 @@ func scheduleFreeSlotsTask(bot *tgbot.BotAPI) {
 	}
 }
 
-func initBot() {
+func initBot() error {
 	tasks.InitScheduler()
 	initHandlers()
-
-	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
-	config.ReadConfig()
-
 	err := db.Init(config.Cfg.DBDriver, config.Cfg.DBConnectString)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return err
 	}
 
 	bot, err = tgbot.NewBotAPI(config.Cfg.BotToken)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return err
 	}
 	scheduleAnnounceDutyTask(bot)
 	scheduleFreeSlotsTask(bot)
 	tasks.Start()
+	log.Println("Starting dutybot...")
+	return nil
 }
