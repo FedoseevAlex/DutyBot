@@ -44,7 +44,7 @@ func warnAboutFreeSlots(bot *tgbot.BotAPI) {
 	}
 
 	for _, chatID := range chats {
-		outputSlots, err := getFreeSlotsTable(chatID, DefaultFreslotWeeks)
+		outputSlots, err := getFreeSlotsTable(chatID, DefaultFreeSlotWeeks)
 		if err != nil {
 			log.Println(
 				"warnAboutFreeSlots job failed to tabulate free slots: ",
