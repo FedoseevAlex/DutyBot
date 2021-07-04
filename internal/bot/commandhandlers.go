@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	MarkdownParseMode   = "MarkdownV2"
-	FreeslotsThreshold  = 10
-	DefaultFreslotWeeks = 1
-	DefaultShowWeeks    = 1
-	NoParseMode         = ""
+	MarkdownParseMode    = "MarkdownV2"
+	FreeslotsThreshold   = 10
+	DefaultFreeSlotWeeks = 2
+	DefaultShowWeeks     = 2
+	NoParseMode          = ""
 )
 
 var handlers map[string]func(*tgbot.BotAPI, *tgbot.Message)
@@ -251,7 +251,7 @@ func checkWeeks(weekArgument string) (int, error) {
 	var weeks int
 
 	if weekArgument == "" {
-		return DefaultFreslotWeeks, nil
+		return DefaultFreeSlotWeeks, nil
 	}
 
 	weeks, err := strconv.Atoi(weekArgument)
