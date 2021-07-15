@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	configPath string = "/etc/dutybot/dutybot.yaml"
+	DefaultConfigPath string = "/etc/dutybot/dutybot.yaml"
 )
 
 // Configuration structure
@@ -36,8 +36,8 @@ type Config struct {
 var Cfg *Config
 
 // Public function to read config from standard location
-func ReadConfig() {
-	configdata, err := ioutil.ReadFile(configPath)
+func ReadConfig(path string) {
+	configdata, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}

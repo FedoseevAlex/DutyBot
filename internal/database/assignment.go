@@ -23,10 +23,11 @@ type Assignment struct {
 
 func (a *Assignment) Insert() (err error) {
 	res, err := db.Exec(
-		`INSERT INTO assignments(dutydate,
-                                 operator,
-                                 chat_id)
-         VALUES (?, ?, ?)`,
+		`INSERT INTO assignments(
+			dutydate,
+			operator,
+			chat_id)
+		VALUES (?, ?, ?)`,
 		a.DutyDate.Format(utils.DateFormat),
 		a.Operator.ID,
 		a.ChatID,
@@ -180,7 +181,7 @@ func GetFreeSlots(weeks int, chatID int64) (freedates []time.Time, err error) {
 
 	res, err := db.Query(`SELECT dutydate FROM assignments
                                 WHERE chat_id=?
-                                AND 
+                                AND
                                 dutydate BETWEEN ? AND ?`,
 		chatID,
 		start.Format(utils.DateFormat),

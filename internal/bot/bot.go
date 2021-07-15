@@ -17,6 +17,8 @@ import (
 
 var bot *tgbot.BotAPI
 
+const logFilePermissions = 0o666
+
 func handleRequests(_ http.ResponseWriter, req *http.Request) {
 	defer utils.Close(req.Body)
 
@@ -47,11 +49,11 @@ func handleRequests(_ http.ResponseWriter, req *http.Request) {
 }
 
 func StartBotHook() {
-	config.ReadConfig()
+	config.ReadConfig(config.DefaultConfigPath)
 
 	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
 
-	logfile, err := os.OpenFile(config.Cfg.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY|os.O_SYNC, 0o666)
+	logfile, err := os.OpenFile(config.Cfg.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY|os.O_SYNC, logFilePermissions)
 	if err != nil {
 		log.Println("Unable to open a log file: ", config.Cfg.LogPath)
 	} else {
