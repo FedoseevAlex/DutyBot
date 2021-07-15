@@ -10,27 +10,24 @@ linters:
     - errcheck
     - exhaustive
     - funlen
-    - gochecknoinits
     - goconst
     - gocritic
     - gocyclo
     - gofmt
     - goimports
-    - golint
     - gomnd
     - goprintffuncname
-    - gosec
     - gosimple
     - govet
     - ineffassign
-    - interfacer
     - lll
     - misspell
     - noctx
     - nolintlint
     - rowserrcheck
-    - scopelint
     - staticcheck
+    - revive
+    - exportloopref
     - structcheck
     - stylecheck
     - typecheck
@@ -42,11 +39,13 @@ linters:
     - gofumpt
     - gocognit
   # don't enable:
-  # - bodyclose
   # - sqlclosecheck
+  # - bodyclose
+  # - gosec
+  # - godot
+  # - gochecknoinits
   # - asciicheck
   # - gochecknoglobals
-  # - godot
   # - godox
   # - goerr113
   # - maligned
