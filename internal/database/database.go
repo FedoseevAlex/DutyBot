@@ -2,7 +2,7 @@ package database
 
 import (
 	"database/sql"
-	"log"
+	"dutybot/internal/logger"
 )
 
 type DBModel interface {
@@ -15,7 +15,12 @@ var db *sql.DB
 func Init(driver string, connStr string) (err error) {
 	db, err = sql.Open(driver, connStr)
 	if err != nil {
-		log.Fatalf("error initialising database: %s", err)
+		logger.Log.Error().
+			Err(err).
+			Str("driver", driver).
+			Str("dsn", connStr).
+			Msg("error initialising database")
+		return err
 	}
 	return nil
 }

@@ -2,9 +2,9 @@ package utils
 
 import (
 	"bytes"
+	"dutybot/internal/logger"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -103,6 +103,9 @@ func GetDate(date *time.Time) *time.Time {
 // error from Close function.
 func Close(c io.Closer) {
 	if err := c.Close(); err != nil {
-		log.Println(err)
+		logger.Log.Error().
+			Stack().
+			Err(err).
+			Msg("Closing error")
 	}
 }
