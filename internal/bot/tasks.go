@@ -1,10 +1,10 @@
 package bot
 
 import (
+	"dutybot/internal/logger"
 	"fmt"
 
 	db "dutybot/internal/database"
-	"dutybot/internal/logger"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
 )

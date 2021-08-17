@@ -2,6 +2,7 @@ package bot
 
 import (
 	"dutybot/internal/config"
+	"dutybot/internal/logger"
 	"dutybot/internal/tasks"
 	"dutybot/internal/utils"
 	"encoding/json"
@@ -11,7 +12,6 @@ import (
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
 
 	db "dutybot/internal/database"
-	"dutybot/internal/logger"
 )
 
 var bot *tgbot.BotAPI
@@ -25,7 +25,10 @@ func processUpdate(update tgbot.Update) error {
 	}
 
 	if msg.IsCommand() {
-		processCommands(bot, msg)
+		err := processCommands(bot, msg)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -85,7 +88,6 @@ func StartBot() error {
 }
 
 func StartBotHook() error {
-	http.HandleFunc("/check", check)
 	http.HandleFunc("/"+bot.Token, handleRequests)
 
 	err := http.ListenAndServeTLS(
@@ -117,20 +119,16 @@ func StartBotLongPoll() error {
 	}
 
 	for update := range updates {
-		processUpdate(update)
+		err = processUpdate(update)
 		if err != nil {
 			logger.Log.Error().
+				Stack().
 				Err(err).
-				Msg("Unable to start long poll bot")
-			return err
+				Msg("Unable to process update")
 		}
 	}
 
 	return nil
-}
-
-func check(_ http.ResponseWriter, req *http.Request) {
-	logger.Log.Debug().Msg("check function calles")
 }
 
 func scheduleAnnounceDutyTask(bot *tgbot.BotAPI) {

@@ -26,7 +26,6 @@ linters:
     - nolintlint
     - rowserrcheck
     - staticcheck
-    - revive
     - exportloopref
     - structcheck
     - stylecheck

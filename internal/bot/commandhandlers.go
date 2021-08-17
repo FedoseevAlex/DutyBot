@@ -2,6 +2,7 @@ package bot
 
 import (
 	"dutybot/internal/calendar"
+	"dutybot/internal/logger"
 	"dutybot/internal/utils"
 	"fmt"
 	"regexp"
@@ -9,9 +10,9 @@ import (
 	"time"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/pkg/errors"
 
 	db "dutybot/internal/database"
-	"dutybot/internal/logger"
 )
 
 const (
@@ -22,10 +23,10 @@ const (
 	NoParseMode          = ""
 )
 
-var handlers map[string]func(*tgbot.BotAPI, *tgbot.Message)
+var handlers map[string]func(*tgbot.BotAPI, *tgbot.Message) error
 
 func initHandlers() {
-	handlers = make(map[string]func(*tgbot.BotAPI, *tgbot.Message))
+	handlers = make(map[string]func(*tgbot.BotAPI, *tgbot.Message) error)
 	handlers["help"] = help
 	handlers["assign"] = assign
 	handlers["show"] = show
@@ -34,7 +35,7 @@ func initHandlers() {
 	handlers["reset"] = resetAssign
 }
 
-func processCommands(bot *tgbot.BotAPI, msg *tgbot.Message) {
+func processCommands(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 	handler, ok := handlers[msg.Command()]
 	if !ok {
 		answer := tgbot.NewMessage(msg.Chat.ID, "Unknown command. Try /help")
@@ -42,12 +43,13 @@ func processCommands(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		if err != nil {
 			logger.Log.Error().Err(err).Send()
 		}
-		return
+		return errors.New("Unknown command")
 	}
-	handler(bot, msg)
+	err := handler(bot, msg)
+	return err
 }
 
-func help(bot *tgbot.BotAPI, msg *tgbot.Message) {
+func help(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 	helpString := `Usage:
 /help - look at this message again
 /operator - tag current duty
@@ -64,10 +66,12 @@ https://github.com/FedoseevAlex/DutyBot/issues
 	_, err := bot.Send(answer)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
+		return err
 	}
+	return nil
 }
 
-func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
+func operator(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 	as, err := db.GetTodaysAssignment(msg.Chat.ID)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
@@ -76,7 +80,7 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		if err != nil {
 			logger.Log.Error().Err(err).Send()
 		}
-		return
+		return err
 	}
 
 	operator := fmt.Sprintf("@%s", as.Operator.UserName)
@@ -84,7 +88,9 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	_, err = bot.Send(reply)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
+		return err
 	}
+	return nil
 }
 
 // This function assumes that date
@@ -140,17 +146,18 @@ func checkDate(possibleDate string) (*time.Time, error) {
 	return dutydate, nil
 }
 
-func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
+func assign(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 	dutydate, err := checkDate(msg.CommandArguments())
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
 		sendMessage(bot, msg.Chat.ID, err.Error(), NoParseMode)
-		return
+		return err
 	}
 
 	as, err := db.GetAssignmentByDate(msg.Chat.ID, dutydate)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
+		return err
 	}
 	if as != nil {
 		sendMessage(
@@ -159,7 +166,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			fmt.Sprintf("This day already taken by `%s`", as.Operator.UserName),
 			NoParseMode,
 		)
-		return
+		return nil
 	}
 
 	op := &db.Operator{
@@ -172,7 +179,7 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		err = op.Insert()
 		if err != nil {
 			logger.Log.Error().Err(err).Send()
-			return
+			return err
 		}
 	}
 
@@ -181,13 +188,14 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	err = a.Insert()
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
-		return
+		return err
 	}
 
 	assignments, err := getAssignmentsTable(msg.Chat.ID, DefaultShowWeeks)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
 		sendMessage(bot, msg.Chat.ID, err.Error(), NoParseMode)
+		return err
 	}
 	sendMessage(
 		bot,
@@ -195,9 +203,10 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		fmt.Sprintf("```\n%s\n```", assignments),
 		MarkdownParseMode,
 	)
+	return nil
 }
 
-func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) {
+func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 	var err error
 	dutydate := utils.GetToday()
 
@@ -206,7 +215,7 @@ func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		if err != nil {
 			logger.Log.Error().Err(err).Send()
 			sendMessage(bot, msg.Chat.ID, err.Error(), NoParseMode)
-			return
+			return err
 		}
 	}
 
@@ -221,7 +230,7 @@ func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			),
 			NoParseMode,
 		)
-		return
+		return err
 	}
 
 	err = as.Delete()
@@ -233,7 +242,7 @@ func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			"failed to reset assignments",
 			NoParseMode,
 		)
-		return
+		return err
 	}
 
 	sendMessage(
@@ -246,6 +255,7 @@ func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		),
 		NoParseMode,
 	)
+	return nil
 }
 
 func checkWeeks(weekArgument string) (int, error) {
@@ -270,7 +280,7 @@ func checkWeeks(weekArgument string) (int, error) {
 	return weeks, nil
 }
 
-func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) {
+func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 	weeks, err := checkWeeks(msg.CommandArguments())
 	if err != nil {
 		sendMessage(
@@ -279,16 +289,17 @@ func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			err.Error(),
 			NoParseMode,
 		)
-		return
+		return err
 	}
 
 	table, err := getFreeSlotsTable(msg.Chat.ID, weeks)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
-		return
+		return err
 	}
 
 	sendMessage(bot, msg.Chat.ID, table, NoParseMode)
+	return nil
 }
 
 func getFreeSlotsTable(chatID int64, weeks int) (string, error) {
@@ -314,7 +325,7 @@ func getFreeSlotsTable(chatID int64, weeks int) (string, error) {
 	return table, nil
 }
 
-func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
+func show(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 	weeks, err := checkWeeks(msg.CommandArguments())
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
@@ -324,7 +335,7 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			err.Error(),
 			NoParseMode,
 		)
-		return
+		return err
 	}
 
 	table, err := getAssignmentsTable(msg.Chat.ID, weeks)
@@ -336,13 +347,14 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 			fmt.Sprintf("Tabulation error: %s", err.Error()),
 			NoParseMode,
 		)
-		return
+		return err
 	}
 
 	if table == "" {
 		table = "Nothing to show"
 	}
 	sendMessage(bot, msg.Chat.ID, fmt.Sprintf("```\n%s\n```", table), MarkdownParseMode)
+	return nil
 }
 
 func getAssignmentsTable(chatID int64, weeks int) (string, error) {
