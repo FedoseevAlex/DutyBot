@@ -2,11 +2,14 @@ package main
 
 import (
 	"dutybot/internal/bot"
+	"os"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
-	bot.StartBot()
+	if err := bot.StartBot(); err != nil {
+		os.Exit(1)
+	}
 }

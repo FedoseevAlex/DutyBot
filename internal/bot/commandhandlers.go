@@ -4,7 +4,6 @@ import (
 	"dutybot/internal/calendar"
 	"dutybot/internal/utils"
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"time"
@@ -12,6 +11,7 @@ import (
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
 
 	db "dutybot/internal/database"
+	"dutybot/internal/logger"
 )
 
 const (
@@ -40,7 +40,7 @@ func processCommands(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		answer := tgbot.NewMessage(msg.Chat.ID, "Unknown command. Try /help")
 		_, err := bot.Send(answer)
 		if err != nil {
-			log.Print(err)
+			logger.Log.Error().Err(err).Send()
 		}
 		return
 	}
@@ -63,18 +63,18 @@ https://github.com/FedoseevAlex/DutyBot/issues
 	answer := tgbot.NewMessage(msg.Chat.ID, helpString)
 	_, err := bot.Send(answer)
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 	}
 }
 
 func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	as, err := db.GetTodaysAssignment(msg.Chat.ID)
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 		reply := tgbot.NewMessage(msg.Chat.ID, "Couldn't fetch today's duty.")
 		_, err := bot.Send(reply)
 		if err != nil {
-			log.Print(err)
+			logger.Log.Error().Err(err).Send()
 		}
 		return
 	}
@@ -83,7 +83,7 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	reply := tgbot.NewMessage(msg.Chat.ID, operator)
 	_, err = bot.Send(reply)
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 	}
 }
 
@@ -114,14 +114,14 @@ func sendMessage(bot *tgbot.BotAPI, chatID int64, message string, parseMode stri
 
 	_, err := bot.Send(msg)
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 	}
 }
 
 func checkDate(possibleDate string) (*time.Time, error) {
 	dutydate, err := parseTime(possibleDate)
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 		return nil, err
 	}
 
@@ -143,14 +143,14 @@ func checkDate(possibleDate string) (*time.Time, error) {
 func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	dutydate, err := checkDate(msg.CommandArguments())
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 		sendMessage(bot, msg.Chat.ID, err.Error(), NoParseMode)
 		return
 	}
 
 	as, err := db.GetAssignmentByDate(msg.Chat.ID, dutydate)
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 	}
 	if as != nil {
 		sendMessage(
@@ -171,21 +171,22 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	if err != nil {
 		err = op.Insert()
 		if err != nil {
-			log.Print(err)
+			logger.Log.Error().Err(err).Send()
 			return
 		}
 	}
 
 	a := &db.Assignment{ChatID: msg.Chat.ID, DutyDate: *dutydate, Operator: op}
-	log.Printf("new assignment: %+v", a)
+	logger.Log.Printf("new assignment: %+v", a)
 	err = a.Insert()
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 		return
 	}
 
 	assignments, err := getAssignmentsTable(msg.Chat.ID, DefaultShowWeeks)
 	if err != nil {
+		logger.Log.Error().Err(err).Send()
 		sendMessage(bot, msg.Chat.ID, err.Error(), NoParseMode)
 	}
 	sendMessage(
@@ -203,7 +204,7 @@ func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	if msg.CommandArguments() != "" {
 		dutydate, err = checkDate(msg.CommandArguments())
 		if err != nil {
-			log.Println(err)
+			logger.Log.Error().Err(err).Send()
 			sendMessage(bot, msg.Chat.ID, err.Error(), NoParseMode)
 			return
 		}
@@ -225,7 +226,7 @@ func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) {
 
 	err = as.Delete()
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 		sendMessage(
 			bot,
 			msg.Chat.ID,
@@ -283,7 +284,7 @@ func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) {
 
 	table, err := getFreeSlotsTable(msg.Chat.ID, weeks)
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 		return
 	}
 
@@ -293,7 +294,7 @@ func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) {
 func getFreeSlotsTable(chatID int64, weeks int) (string, error) {
 	slots, err := db.GetFreeSlots(weeks, chatID)
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Err(err).Send()
 		return "", err
 	}
 
@@ -307,6 +308,7 @@ func getFreeSlotsTable(chatID int64, weeks int) (string, error) {
 	}
 	table, err := freeSlots.String()
 	if err != nil {
+		logger.Log.Error().Err(err).Send()
 		return "", err
 	}
 	return table, nil
@@ -315,6 +317,7 @@ func getFreeSlotsTable(chatID int64, weeks int) (string, error) {
 func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 	weeks, err := checkWeeks(msg.CommandArguments())
 	if err != nil {
+		logger.Log.Error().Err(err).Send()
 		sendMessage(
 			bot,
 			msg.Chat.ID,
@@ -326,6 +329,7 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 
 	table, err := getAssignmentsTable(msg.Chat.ID, weeks)
 	if err != nil {
+		logger.Log.Error().Stack().Err(err).Send()
 		sendMessage(
 			bot,
 			msg.Chat.ID,
@@ -335,12 +339,16 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) {
 		return
 	}
 
+	if table == "" {
+		table = "Nothing to show"
+	}
 	sendMessage(bot, msg.Chat.ID, fmt.Sprintf("```\n%s\n```", table), MarkdownParseMode)
 }
 
 func getAssignmentsTable(chatID int64, weeks int) (string, error) {
 	assignments, err := db.GetAssignmentSchedule(weeks, chatID)
 	if err != nil {
+		logger.Log.Error().Stack().Err(err).Send()
 		return "", fmt.Errorf("couldn't get assignments")
 	}
 
@@ -352,6 +360,7 @@ func getAssignmentsTable(chatID int64, weeks int) (string, error) {
 	}
 	table, err := schedule.String()
 	if err != nil {
+		logger.Log.Error().Err(err).Send()
 		return "", err
 	}
 	return table, nil

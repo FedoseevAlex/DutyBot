@@ -1,12 +1,13 @@
 package database
 
 import (
-	"dutybot/internal/calendar"
-	"dutybot/internal/utils"
 	"fmt"
-	"log"
 	"sort"
 	"time"
+
+	"dutybot/internal/calendar"
+	"dutybot/internal/logger"
+	"dutybot/internal/utils"
 )
 
 type Assignment struct {
@@ -33,12 +34,12 @@ func (a *Assignment) Insert() (err error) {
 		a.ChatID,
 	)
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Stack().Err(err).Send()
 		return
 	}
 	a.ID, err = res.LastInsertId()
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Stack().Err(err).Send()
 		return
 	}
 	return
@@ -50,7 +51,7 @@ func (a *Assignment) Delete() (err error) {
 		a.ID,
 	)
 	if err != nil {
-		log.Println(err)
+		logger.Log.Error().Stack().Err(err).Send()
 	}
 	return
 }
@@ -72,12 +73,12 @@ func GetAssignmentSchedule(weeks int, chatID int64) (as []*Assignment, err error
 		future.Format(utils.DateFormat),
 	)
 	if err != nil {
-		log.Print(err)
+		logger.Log.Error().Stack().Err(err).Send()
 		return
 	}
 
 	if rows.Err() != nil {
-		log.Print(rows.Err())
+		logger.Log.Error().Stack().Err(rows.Err()).Send()
 		return
 	}
 	defer utils.Close(rows)
@@ -88,19 +89,19 @@ func GetAssignmentSchedule(weeks int, chatID int64) (as []*Assignment, err error
 		var dutyDate string
 		err = rows.Scan(&a.ID, &dutyDate, &a.ChatID, &op.ID)
 		if err != nil {
-			log.Print(err)
+			logger.Log.Error().Stack().Err(err).Send()
 			return
 		}
 
 		a.DutyDate, err = time.Parse(utils.DateFormat, dutyDate)
 		if err != nil {
-			log.Print(err)
+			logger.Log.Error().Stack().Err(err).Send()
 			return
 		}
 
 		err = op.GetByID()
 		if err != nil {
-			log.Print(err)
+			logger.Log.Error().Stack().Err(err).Send()
 			return
 		}
 		as = append(as, a)
@@ -196,7 +197,7 @@ func GetFreeSlots(weeks int, chatID int64) (freedates []time.Time, err error) {
 	for res.Next() {
 		err = res.Scan(&buf)
 		if err != nil {
-			log.Print(err)
+			logger.Log.Error().Stack().Err(err).Send()
 			return
 		}
 

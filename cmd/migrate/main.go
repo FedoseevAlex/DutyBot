@@ -2,47 +2,51 @@ package main
 
 import (
 	"dutybot/internal/config"
-	"flag"
-	"log"
+	"dutybot/internal/logger"
 	"os"
 
 	_ "dutybot/internal/migrations"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/pkg/errors"
 	"github.com/pressly/goose"
 )
 
-var (
-	flags      = flag.NewFlagSet("goose", flag.ExitOnError)
-	configPath = flags.String("config", config.DefaultConfigPath, "path to config file")
-)
-
 func main() {
-	if err := flags.Parse(os.Args[1:]); err != nil {
-		log.Print("Unable to parse flags: ", err)
-		return
+	if err := runMigrations(); err != nil {
+		os.Exit(1)
 	}
+}
 
-	config.ReadConfig(*configPath)
+func runMigrations() error {
+	log := logger.GetConsoleLogger()
+	log.Debug().Msg("Starting migration...")
+	config.ReadConfig()
 
-	args := flags.Args()
-	command := args[0]
+	if len(os.Args) < 2 {
+		err := errors.New("No command specified")
+		log.Error().Err(err).Send()
+		return err
+	}
+	command := os.Args[1]
 
 	db, err := goose.OpenDBWithDriver(config.Cfg.DBDriver, config.Cfg.DBConnectString)
 	if err != nil {
-		log.Print("Cannot connect to database: ", err)
-		return
+		log.Error().Err(err).Msg("Cannot connect to database")
+		return err
 	}
 
 	defer func() {
 		if err := db.Close(); err != nil {
-			log.Fatal("Failed to close db", err)
+			log.Error().Err(err).Msg("Failed to close db")
+			return
 		}
 	}()
 
 	err = goose.Run(command, db, ".")
 	if err != nil {
-		log.Print("Error running migrations: ", err)
-		return
+		log.Error().Err(err).Msg("Failed to close db")
+		return err
 	}
+	return nil
 }

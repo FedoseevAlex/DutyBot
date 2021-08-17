@@ -1,8 +1,9 @@
 package config
 
 import (
+	"dutybot/internal/logger"
 	"io/ioutil"
-	"log"
+	"os"
 
 	"gopkg.in/yaml.v2"
 )
@@ -36,10 +37,17 @@ type Config struct {
 var Cfg *Config
 
 // Public function to read config from standard location
-func ReadConfig(path string) {
+func ReadConfig() {
+	path, ok := os.LookupEnv("DUTYBOT_CONFIG")
+	if !ok {
+		path = DefaultConfigPath
+	}
 	configdata, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Error().
+			Err(err).
+			Str("path", path).
+			Msgf("Failed to read config file")
 	}
 	Cfg = readConfigFromBytes(&configdata)
 }
@@ -48,7 +56,9 @@ func ReadConfig(path string) {
 func readConfigFromBytes(contents *[]byte) (config *Config) {
 	err := yaml.Unmarshal(*contents, &config)
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Error().
+			Err(err).
+			Msgf("Failed to unmarshal config from yaml")
 	}
 	return
 }
