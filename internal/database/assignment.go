@@ -64,10 +64,9 @@ func GetAssignmentSchedule(weeks int, chatID int64) (as []*Assignment, err error
 
 	rows, err := db.Query(
 		`SELECT id, dutydate, chat_id, operator
-         FROM assignments
-         WHERE chat_id=? AND
-               dutydate BETWEEN ? AND ?
-         ORDER BY dutydate`,
+		 FROM assignments
+		 WHERE chat_id=? AND dutydate BETWEEN ? AND ?
+		 ORDER BY dutydate`,
 		chatID,
 		today.Format(utils.DateFormat),
 		future.Format(utils.DateFormat),
