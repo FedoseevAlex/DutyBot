@@ -19,6 +19,20 @@ var bot *tgbot.BotAPI
 
 const logFilePermissions = 0o666
 
+func processUpdate(update tgbot.Update) error {
+	var msg *tgbot.Message
+	if update.EditedMessage != nil {
+		msg = update.EditedMessage
+	} else {
+		msg = update.Message
+	}
+
+	if msg.IsCommand() {
+		processCommands(bot, msg)
+	}
+	return nil
+}
+
 func handleRequests(_ http.ResponseWriter, req *http.Request) {
 	defer utils.Close(req.Body)
 
@@ -29,7 +43,6 @@ func handleRequests(_ http.ResponseWriter, req *http.Request) {
 	}
 
 	var update tgbot.Update
-	var msg *tgbot.Message
 
 	err = json.Unmarshal(bodyBytes, &update)
 	if err != nil {
@@ -37,39 +50,31 @@ func handleRequests(_ http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if update.EditedMessage != nil {
-		msg = update.EditedMessage
-	} else {
-		msg = update.Message
-	}
-
-	if msg.IsCommand() {
-		processCommands(bot, msg)
+	err = processUpdate(update)
+	if err != nil {
+		log.Println("Unable to process update from telegram: ", err)
 	}
 }
 
-func StartBotHook() {
-	config.ReadConfig(config.DefaultConfigPath)
-
-	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
-
-	logfile, err := os.OpenFile(config.Cfg.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY|os.O_SYNC, logFilePermissions)
-	if err != nil {
-		log.Println("Unable to open a log file: ", config.Cfg.LogPath)
-	} else {
-		defer utils.Close(logfile)
-		log.SetOutput(logfile)
-	}
-
-	err = initBot()
+func StartBot() {
+	err := initBot()
 	if err != nil {
 		log.Println("Unable to init bot: ", err)
 		return
 	}
 
+	if false {
+		StartBotHook()
+	} else {
+		StartBotLongPoll()
+	}
+}
+
+func StartBotHook() {
+	http.HandleFunc("/check", check)
 	http.HandleFunc("/"+bot.Token, handleRequests)
 
-	err = http.ListenAndServeTLS(
+	err := http.ListenAndServeTLS(
 		config.Cfg.ListenAddr,
 		config.Cfg.CertPath,
 		config.Cfg.KeyPath,
@@ -78,6 +83,29 @@ func StartBotHook() {
 	if err != nil {
 		log.Println("Unable to start https server: ", err)
 	}
+	log.Println("Server shutdown")
+}
+
+func StartBotLongPoll() {
+	updateConfig := tgbot.UpdateConfig{}
+	updateConfig.Timeout = 5
+
+	updates, err := bot.GetUpdatesChan(updateConfig)
+	if err != nil {
+		log.Println("Unable to start long poll bot: ", err)
+		return
+	}
+
+	for update := range updates {
+		processUpdate(update)
+		if err != nil {
+			log.Println("Unable to start long poll bot: ", err)
+		}
+	}
+}
+
+func check(_ http.ResponseWriter, req *http.Request) {
+	log.Println("check function calles")
 }
 
 func scheduleAnnounceDutyTask(bot *tgbot.BotAPI) {
@@ -103,9 +131,21 @@ func scheduleFreeSlotsTask(bot *tgbot.BotAPI) {
 }
 
 func initBot() error {
+	config.ReadConfig(config.DefaultConfigPath)
+
+	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
+
+	logfile, err := os.OpenFile(config.Cfg.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY|os.O_SYNC, logFilePermissions)
+	if err != nil {
+		log.Println("Unable to open a log file: ", config.Cfg.LogPath)
+	} else {
+		defer utils.Close(logfile)
+		log.SetOutput(logfile)
+	}
+
 	tasks.InitScheduler()
 	initHandlers()
-	err := db.Init(config.Cfg.DBDriver, config.Cfg.DBConnectString)
+	err = db.Init(config.Cfg.DBDriver, config.Cfg.DBConnectString)
 	if err != nil {
 		log.Print(err)
 		return err
