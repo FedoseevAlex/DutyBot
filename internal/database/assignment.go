@@ -1,13 +1,12 @@
 package database
 
 import (
-	"fmt"
-	"sort"
-	"time"
-
 	"dutybot/internal/calendar"
 	"dutybot/internal/logger"
 	"dutybot/internal/utils"
+	"fmt"
+	"sort"
+	"time"
 )
 
 type Assignment struct {

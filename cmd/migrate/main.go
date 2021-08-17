@@ -12,6 +12,8 @@ import (
 	"github.com/pressly/goose"
 )
 
+const minArgs = 2
+
 func main() {
 	if err := runMigrations(); err != nil {
 		os.Exit(1)
@@ -23,7 +25,7 @@ func runMigrations() error {
 	log.Debug().Msg("Starting migration...")
 	config.ReadConfig()
 
-	if len(os.Args) < 2 {
+	if len(os.Args) < minArgs {
 		err := errors.New("No command specified")
 		log.Error().Err(err).Send()
 		return err
