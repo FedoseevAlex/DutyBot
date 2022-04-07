@@ -1,29 +1,26 @@
 package config
 
 import (
+	"os"
 	"testing"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
-var configString = `
-bot_token: 1234567890:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-free_slots_warn_schedule: "0 7 * * FRI"
-duty_announce_schedule: "0 7 * * *"
-db_connect_string: user:passwd@tcp(10.100.0.100:3306)/database
-db_driver: mysql
-`
-
-func TestReadConfigFromBytes(t *testing.T) {
-	expected := Config{
-		DBConnectString:       "user:passwd@tcp(10.100.0.100:3306)/database",
-		DBDriver:              "mysql",
-		BotToken:              "1234567890:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		FreeSlotsWarnSchedule: "0 7 * * FRI",
-		DutyAnnounceSchedule:  "0 7 * * *",
+func TestReadConfigFromEnvironmentVariables(t *testing.T) {
+	err := os.Setenv("DB_CONNECT_STRING", "foobarbaz_db_connect_wow")
+	if err != nil {
+		t.Error(err)
 	}
-	testConfig := []byte(configString)
-	result := readConfigFromBytes(&testConfig)
 
-	assert.Equal(t, expected, *result)
+	err = os.Setenv("BOT_TOKEN", "bot_token_official")
+	if err != nil {
+		t.Error(err)
+	}
+
+	ReadConfig()
+
+	assert.Equal(t, "foobarbaz_db_connect_wow", viper.GetString("DB_CONNECT_STRING"))
+	assert.Equal(t, "bot_token_official", viper.GetString("BOT_TOKEN"))
 }
