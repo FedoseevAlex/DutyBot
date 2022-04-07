@@ -1,64 +1,34 @@
 package config
 
 import (
-	"dutybot/internal/logger"
-	"io/ioutil"
-	"os"
-
-	"gopkg.in/yaml.v2"
+	"github.com/spf13/viper"
 )
-
-const (
-	DefaultConfigPath string = "/etc/dutybot/dutybot.yaml"
-)
-
-// Configuration structure
-type Config struct {
-	DBConnectString string `yaml:"db_connect_string"`
-	DBDriver        string `yaml:"db_driver"`
-	// Telegram bot token
-	BotToken string `yaml:"bot_token"`
-	// Logfile path
-	LogPath string `yaml:"log_path"`
-	// Web hook listen address
-	ListenAddr string `yaml:"listen_addr"`
-	// Certificate file path
-	CertPath string `yaml:"cert_path"`
-	// Key file path
-	KeyPath string `yaml:"key_path"`
-
-	// TODO: Candidates to per chat settings
-	// Cron pattern to notify current Duty
-	DutyAnnounceSchedule string `yaml:"duty_announce_schedule"`
-	// Cron pattern to warn about free duty slots
-	FreeSlotsWarnSchedule string `yaml:"free_slots_warn_schedule"`
-}
-
-var Cfg *Config
 
 // Public function to read config from standard location
 func ReadConfig() {
-	path, ok := os.LookupEnv("DUTYBOT_CONFIG")
-	if !ok {
-		path = DefaultConfigPath
-	}
-	configdata, err := ioutil.ReadFile(path)
-	if err != nil {
-		logger.Log.Error().
-			Err(err).
-			Str("path", path).
-			Msgf("Failed to read config file")
-	}
-	Cfg = readConfigFromBytes(&configdata)
-}
+	viper.BindEnv("DBConnectString", "DB_CONNECT_STRING")
+	viper.BindEnv("BotToken", "BOT_TOKEN")
 
-// Read config from file and fill Cfg var
-func readConfigFromBytes(contents *[]byte) (config *Config) {
-	err := yaml.Unmarshal(*contents, &config)
-	if err != nil {
-		logger.Log.Error().
-			Err(err).
-			Msgf("Failed to unmarshal config from yaml")
-	}
-	return
+	viper.BindEnv("DBDriver", "DB_DRIVER")
+	viper.SetDefault("DBDriver", "postgres")
+
+	viper.BindEnv("LogPath", "LOG_PATH")
+	viper.SetDefault("LogPath", "/var/log/dutybot.log")
+
+	viper.BindEnv("ListenAddress", "LISTEN_ADDRESS")
+	viper.SetDefault("ListenAddress", "0.0.0.0:8443")
+
+	viper.BindEnv("CertPath", "CERT_PATH")
+	viper.SetDefault("CertPath", "/etc/dutybot/pub.pem")
+
+	viper.BindEnv("KeyPath", "KEY_PATH")
+	viper.SetDefault("KeyPath", "/etc/dutybot/priv.key")
+
+	viper.BindEnv("DutyAnnounceSchedule", "ANNOUNCE_SCHEDULE")
+	viper.SetDefault("DutyAnnounceSchedule", "0 10 * * *")
+
+	viper.BindEnv("FreeSlotsWarnSchedule", "FREE_SLOTS_SCHEDULE")
+	viper.SetDefault("FreeSlotsWarnSchedule", "0 10 * * FRI")
+
+	viper.AutomaticEnv()
 }

@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/spf13/viper"
 
 	db "dutybot/internal/database"
 )
@@ -91,9 +92,9 @@ func StartBotHook() error {
 	http.HandleFunc("/"+bot.Token, handleRequests)
 
 	err := http.ListenAndServeTLS(
-		config.Cfg.ListenAddr,
-		config.Cfg.CertPath,
-		config.Cfg.KeyPath,
+		viper.GetString("ListenAddr"),
+		viper.GetString("CertPath"),
+		viper.GetString("KeyPath"),
 		nil,
 	)
 	if err != nil {
@@ -137,7 +138,7 @@ func scheduleAnnounceDutyTask(bot *tgbot.BotAPI) {
 	announce := func() {
 		announceDutyTask(bot)
 	}
-	_, err := tasks.AddTask(config.Cfg.DutyAnnounceSchedule, announce)
+	_, err := tasks.AddTask(viper.GetString("DutyAnnounceSchedule"), announce)
 	if err != nil {
 		logger.Log.Error().
 			Err(err).
@@ -149,7 +150,7 @@ func scheduleFreeSlotsTask(bot *tgbot.BotAPI) {
 	checkFreeSlots := func() {
 		warnAboutFreeSlots(bot)
 	}
-	_, err := tasks.AddTask(config.Cfg.FreeSlotsWarnSchedule, checkFreeSlots)
+	_, err := tasks.AddTask(viper.GetString("FreeSlotsWarnSchedule"), checkFreeSlots)
 	if err != nil {
 		logger.Log.Error().
 			Err(err).
@@ -159,17 +160,17 @@ func scheduleFreeSlotsTask(bot *tgbot.BotAPI) {
 
 func initBot() error {
 	config.ReadConfig()
-	logger.InitLogger(config.Cfg.LogPath)
+	logger.InitLogger(viper.GetString("LogPath"))
 	tasks.InitScheduler()
 	initHandlers()
 
-	err := db.Init(config.Cfg.DBDriver, config.Cfg.DBConnectString)
+	err := db.Init(viper.GetString("DBDriver"), viper.GetString("DBConnectString"))
 	if err != nil {
 		logger.Log.Error().Stack().Err(err).Send()
 		return err
 	}
 
-	bot, err = tgbot.NewBotAPI(config.Cfg.BotToken)
+	bot, err = tgbot.NewBotAPI(viper.GetString("BotToken"))
 	if err != nil {
 		logger.Log.Error().Stack().Err(err).Send()
 		return err
