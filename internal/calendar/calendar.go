@@ -2,13 +2,14 @@ package calendar
 
 import (
 	"context"
-	"dutybot/internal/utils"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/FedoseevAlex/DutyBot/internal/utils"
 )
 
 const (

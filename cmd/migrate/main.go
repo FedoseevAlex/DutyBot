@@ -1,16 +1,16 @@
 package main
 
 import (
-	"dutybot/internal/config"
-	"dutybot/internal/logger"
 	"os"
-
-	_ "dutybot/internal/migrations"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"github.com/pressly/goose"
 	"github.com/spf13/viper"
+
+	"github.com/FedoseevAlex/DutyBot/internal/config"
+	"github.com/FedoseevAlex/DutyBot/internal/logger"
+	_ "github.com/FedoseevAlex/DutyBot/internal/migrations"
 )
 
 const minArgs = 2

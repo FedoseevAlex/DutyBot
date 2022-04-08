@@ -1,10 +1,6 @@
 package bot
 
 import (
-	"dutybot/internal/config"
-	"dutybot/internal/logger"
-	"dutybot/internal/tasks"
-	"dutybot/internal/utils"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -12,7 +8,11 @@ import (
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/spf13/viper"
 
-	db "dutybot/internal/database"
+	"github.com/FedoseevAlex/DutyBot/internal/config"
+	db "github.com/FedoseevAlex/DutyBot/internal/database"
+	"github.com/FedoseevAlex/DutyBot/internal/logger"
+	"github.com/FedoseevAlex/DutyBot/internal/tasks"
+	"github.com/FedoseevAlex/DutyBot/internal/utils"
 )
 
 var bot *tgbot.BotAPI
