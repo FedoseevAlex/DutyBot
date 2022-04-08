@@ -19,7 +19,9 @@ func TestReadConfigFromEnvironmentVariables(t *testing.T) {
 		t.Error(err)
 	}
 
-	ReadConfig()
+	if err := ReadConfig(); err != nil {
+		t.Error(err)
+	}
 
 	assert.Equal(t, "foobarbaz_db_connect_wow", viper.GetString("DB_CONNECT_STRING"))
 	assert.Equal(t, "bot_token_official", viper.GetString("BOT_TOKEN"))

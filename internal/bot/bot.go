@@ -159,7 +159,10 @@ func scheduleFreeSlotsTask(bot *tgbot.BotAPI) {
 }
 
 func initBot() error {
-	config.ReadConfig()
+	if err := config.ReadConfig(); err != nil {
+		return err
+	}
+
 	logger.InitLogger(viper.GetString("LogPath"))
 	tasks.InitScheduler()
 	initHandlers()
