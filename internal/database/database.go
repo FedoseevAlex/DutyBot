@@ -2,7 +2,8 @@ package database
 
 import (
 	"database/sql"
-	"dutybot/internal/logger"
+
+	"github.com/FedoseevAlex/DutyBot/internal/logger"
 )
 
 type DBModel interface {

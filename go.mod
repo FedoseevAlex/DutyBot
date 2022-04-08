@@ -1,4 +1,4 @@
-module github.com/FedoseevAlex/DutyBot/v2
+module github.com/FedoseevAlex/DutyBot
 
 go 1.18
 

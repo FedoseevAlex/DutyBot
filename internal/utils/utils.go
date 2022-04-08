@@ -2,12 +2,13 @@ package utils
 
 import (
 	"bytes"
-	"dutybot/internal/logger"
 	"fmt"
 	"io"
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/FedoseevAlex/DutyBot/internal/logger"
 )
 
 const (

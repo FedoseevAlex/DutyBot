@@ -1,8 +1,9 @@
 package database
 
 import (
-	"dutybot/internal/utils"
 	"time"
+
+	"github.com/FedoseevAlex/DutyBot/internal/utils"
 )
 
 // Basic info of Telegram user that can be assigned for duty

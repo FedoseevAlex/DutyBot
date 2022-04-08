@@ -1,9 +1,6 @@
 package bot
 
 import (
-	"dutybot/internal/calendar"
-	"dutybot/internal/logger"
-	"dutybot/internal/utils"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -12,7 +9,10 @@ import (
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/pkg/errors"
 
-	db "dutybot/internal/database"
+	"github.com/FedoseevAlex/DutyBot/internal/calendar"
+	db "github.com/FedoseevAlex/DutyBot/internal/database"
+	"github.com/FedoseevAlex/DutyBot/internal/logger"
+	"github.com/FedoseevAlex/DutyBot/internal/utils"
 )
 
 const (

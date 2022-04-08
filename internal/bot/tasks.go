@@ -1,12 +1,12 @@
 package bot
 
 import (
-	"dutybot/internal/logger"
 	"fmt"
 
-	db "dutybot/internal/database"
-
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
+
+	db "github.com/FedoseevAlex/DutyBot/internal/database"
+	"github.com/FedoseevAlex/DutyBot/internal/logger"
 )
 
 func announceDutyTask(bot *tgbot.BotAPI) {
