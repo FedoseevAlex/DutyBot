@@ -24,7 +24,10 @@ func main() {
 func runMigrations() error {
 	log := logger.GetConsoleLogger()
 	log.Debug().Msg("Starting migration...")
-	config.ReadConfig()
+	if err := config.ReadConfig(); err != nil {
+		return err
+	}
+
 	log.Debug().Msg("Config read from env vars")
 
 	if len(os.Args) < minArgs {
