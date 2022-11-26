@@ -18,6 +18,7 @@ const (
 	HoursInDay       int           = 24
 	DaysInWeek       int           = 7
 	DayDuration      time.Duration = time.Duration(HoursInDay) * time.Hour
+	WeekDuration     time.Duration = DayDuration * time.Duration(DaysInWeek)
 	defaultMinwidth  int           = 0
 	defaultTabwidth  int           = 4
 	defaultPadding   int           = 2
@@ -74,10 +75,10 @@ func NewPrettyTable() *PrettyTable {
 
 // This function returns time.Time object
 // representing current date.
-func GetToday() *time.Time {
+func GetToday() time.Time {
 	y, m, d := time.Now().Date()
 	today := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
-	return &today
+	return today
 }
 
 // This function returns time.Time object
@@ -93,10 +94,10 @@ func GetTomorrow() time.Time {
 // Function that strips hours minutes and seconds
 // from given time.Time. Returns pointer to time.Time object
 // representing only date.
-func GetDate(date *time.Time) *time.Time {
+func GetDate(date time.Time) time.Time {
 	y, m, d := date.Date()
 	onlyDate := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
-	return &onlyDate
+	return onlyDate
 }
 
 // Simple wrapper for objects that need to be closed.

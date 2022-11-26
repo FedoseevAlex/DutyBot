@@ -23,18 +23,8 @@ func ReadConfig() error {
 		return err
 	}
 
-	viper.SetDefault("ListenAddress", "0.0.0.0:8443")
+	viper.SetDefault("ListenAddress", "0.0.0.0:8080")
 	if err := viper.BindEnv("ListenAddress", "LISTEN_ADDRESS"); err != nil {
-		return err
-	}
-
-	viper.SetDefault("CertPath", "/etc/dutybot/pub.pem")
-	if err := viper.BindEnv("CertPath", "CERT_PATH"); err != nil {
-		return err
-	}
-
-	viper.SetDefault("KeyPath", "/etc/dutybot/priv.key")
-	if err := viper.BindEnv("KeyPath", "KEY_PATH"); err != nil {
 		return err
 	}
 
