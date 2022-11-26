@@ -1,18 +1,23 @@
 package bot
 
 import (
+	"context"
 	"fmt"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
 
-	db "github.com/FedoseevAlex/DutyBot/internal/database"
+	"github.com/FedoseevAlex/DutyBot/internal/database/assignment"
 	"github.com/FedoseevAlex/DutyBot/internal/logger"
+	"github.com/FedoseevAlex/DutyBot/internal/utils"
 )
 
 func announceDutyTask(bot *tgbot.BotAPI) {
 	msgFormat := "@%s is on duty today"
 	logger.Log.Debug().Msg("Start duty announcing")
-	ass, err := db.GetAllTodaysOperators()
+	assignments, err := assignment.AssignmentRepo.GetAssignmentScheduleAllChats(
+		context.Background(),
+		utils.GetToday(),
+	)
 	if err != nil {
 		logger.Log.Error().
 			Err(err).
@@ -20,12 +25,12 @@ func announceDutyTask(bot *tgbot.BotAPI) {
 		return
 	}
 
-	for _, as := range ass {
-		logger.Log.Debug().Msgf("Sending %+v\n", as)
+	for _, assignment := range assignments {
+		logger.Log.Debug().Msgf("Sending %+v\n", assignment)
 		sendMessage(
 			bot,
-			as.ChatID,
-			fmt.Sprintf(msgFormat, as.Operator.UserName),
+			assignment.ChatID,
+			fmt.Sprintf(msgFormat, assignment.Operator),
 			NoParseMode,
 		)
 	}
@@ -34,7 +39,7 @@ func announceDutyTask(bot *tgbot.BotAPI) {
 func warnAboutFreeSlots(bot *tgbot.BotAPI) {
 	logger.Log.Debug().Msg("Start freeslots announcing")
 
-	chats, err := db.GetAllChats()
+	chats, err := assignment.AssignmentRepo.GetAllChats(context.Background())
 	if err != nil {
 		logger.Log.Error().
 			Err(err).

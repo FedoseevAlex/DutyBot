@@ -52,7 +52,7 @@ func buildQueryString(address string, endpoint []string, queryParams map[string]
 // 1 if holiday.
 // Detailed information about API is here:
 // https://isdayoff.ru/desc/
-func IsHoliday(date *time.Time) (isHoliday bool) {
+func IsHoliday(date time.Time) (isHoliday bool) {
 	isHoliday = date.Weekday() > time.Friday
 	if isHoliday {
 		return

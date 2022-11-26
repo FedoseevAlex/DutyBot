@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -9,7 +10,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/FedoseevAlex/DutyBot/internal/config"
-	db "github.com/FedoseevAlex/DutyBot/internal/database"
+	"github.com/FedoseevAlex/DutyBot/internal/database/assignment"
 	"github.com/FedoseevAlex/DutyBot/internal/logger"
 	"github.com/FedoseevAlex/DutyBot/internal/tasks"
 	"github.com/FedoseevAlex/DutyBot/internal/utils"
@@ -163,11 +164,10 @@ func initBot() error {
 		return err
 	}
 
-	logger.InitLogger(viper.GetString("LogPath"))
 	tasks.InitScheduler()
 	initHandlers()
 
-	err := db.Init(viper.GetString("DBDriver"), viper.GetString("DBConnectString"))
+	_, err := assignment.InitAssignmentRepo(context.Background(), viper.GetString("DBConnectString"))
 	if err != nil {
 		logger.Log.Error().Stack().Err(err).Send()
 		return err

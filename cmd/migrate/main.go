@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/jackc/pgx"
 	"github.com/pkg/errors"
 	"github.com/pressly/goose"
 	"github.com/spf13/viper"
@@ -22,37 +22,36 @@ func main() {
 }
 
 func runMigrations() error {
-	log := logger.GetConsoleLogger()
-	log.Debug().Msg("Starting migration...")
+	logger.Log.Debug().Msg("Starting migration...")
 	if err := config.ReadConfig(); err != nil {
 		return err
 	}
 
-	log.Debug().Msg("Config read from env vars")
+	logger.Log.Debug().Msg("Config read from env vars")
 
 	if len(os.Args) < minArgs {
 		err := errors.New("No command specified")
-		log.Error().Err(err).Send()
+		logger.Log.Error().Err(err).Send()
 		return err
 	}
 	command := os.Args[1]
 
-	db, err := goose.OpenDBWithDriver(viper.GetString("DBDriver"), viper.GetString("DBConnectString"))
+	db, err := goose.OpenDBWithDriver("postgres", viper.GetString("DBConnectString"))
 	if err != nil {
-		log.Error().Err(err).Msg("Cannot connect to database")
+		logger.Log.Error().Err(err).Msg("Cannot connect to database")
 		return err
 	}
 
 	defer func() {
 		if err := db.Close(); err != nil {
-			log.Error().Err(err).Msg("Failed to close db")
+			logger.Log.Error().Err(err).Msg("Failed to close db")
 			return
 		}
 	}()
 
 	err = goose.Run(command, db, ".")
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to close db")
+		logger.Log.Error().Err(err).Msg("Failed to close db")
 		return err
 	}
 	return nil

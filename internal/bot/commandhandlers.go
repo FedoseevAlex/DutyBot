@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -10,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/FedoseevAlex/DutyBot/internal/calendar"
-	db "github.com/FedoseevAlex/DutyBot/internal/database"
+	"github.com/FedoseevAlex/DutyBot/internal/database/assignment"
 	"github.com/FedoseevAlex/DutyBot/internal/logger"
 	"github.com/FedoseevAlex/DutyBot/internal/utils"
 )
@@ -72,7 +73,11 @@ https://github.com/FedoseevAlex/DutyBot/issues
 }
 
 func operator(bot *tgbot.BotAPI, msg *tgbot.Message) error {
-	as, err := db.GetTodaysAssignment(msg.Chat.ID)
+	as, err := assignment.AssignmentRepo.GetAssignmentByDate(
+		context.Background(),
+		utils.GetToday(),
+		msg.Chat.ID)
+
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
 		reply := tgbot.NewMessage(msg.Chat.ID, "Couldn't fetch today's duty.")
@@ -82,8 +87,16 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 		}
 		return err
 	}
+	if as.Operator == "" {
+		reply := tgbot.NewMessage(msg.Chat.ID, "No one is assigned for today")
+		_, err := bot.Send(reply)
+		if err != nil {
+			logger.Log.Error().Err(err).Send()
+		}
+		return nil
+	}
 
-	operator := fmt.Sprintf("@%s", as.Operator.UserName)
+	operator := fmt.Sprintf("@%s", as.Operator)
 	reply := tgbot.NewMessage(msg.Chat.ID, operator)
 	_, err = bot.Send(reply)
 	if err != nil {
@@ -95,17 +108,17 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 
 // This function assumes that date
 // is ordered like DD MM YYYY
-func parseTime(probablyTime string) (*time.Time, error) {
+func parseTime(probablyTime string) (time.Time, error) {
 	r := regexp.MustCompile("([0-9]{1,2}).*?([0-9]{1,2}).*?([0-9]{4})")
 	if !r.MatchString(probablyTime) {
-		return nil, fmt.Errorf("'%s' is not look like DD MM YYYY", probablyTime)
+		return time.Time{}, fmt.Errorf("'%s' is not look like DD MM YYYY", probablyTime)
 	}
 	parts := r.FindAllStringSubmatch(probablyTime, 1)[0]
 	date := fmt.Sprintf("%02s", parts[1])
 	month := fmt.Sprintf("%02s", parts[2])
 	year := parts[3]
 	t, err := time.Parse(utils.DateFormat, fmt.Sprintf("%s-%s-%s", year, month, date))
-	return &t, err
+	return t, err
 }
 
 func sendMessage(bot *tgbot.BotAPI, chatID int64, message string, parseMode string) {
@@ -124,11 +137,11 @@ func sendMessage(bot *tgbot.BotAPI, chatID int64, message string, parseMode stri
 	}
 }
 
-func checkDate(possibleDate string) (*time.Time, error) {
+func checkDate(possibleDate string) (time.Time, error) {
 	dutydate, err := parseTime(possibleDate)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
-		return nil, err
+		return time.Time{}, err
 	}
 
 	if calendar.IsHoliday(dutydate) {
@@ -136,11 +149,11 @@ func checkDate(possibleDate string) (*time.Time, error) {
 			"'%s' is a holiday. No duty on holidays",
 			dutydate.Format(utils.DateFormat),
 		)
-		return nil, answer
+		return time.Time{}, answer
 	}
 
-	if utils.GetToday().After(*dutydate) {
-		return nil, fmt.Errorf("assignment is possible only for a future date")
+	if utils.GetToday().After(dutydate) {
+		return time.Time{}, fmt.Errorf("assignment is possible only for a future date")
 	}
 
 	return dutydate, nil
@@ -154,38 +167,30 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 		return err
 	}
 
-	as, err := db.GetAssignmentByDate(msg.Chat.ID, dutydate)
+	as, err := assignment.AssignmentRepo.GetAssignmentByDate(
+		context.Background(),
+		dutydate,
+		msg.Chat.ID)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
 		return err
 	}
-	if as != nil {
+	if as.Operator != "" {
 		sendMessage(
 			bot,
 			msg.Chat.ID,
-			fmt.Sprintf("This day already taken by `%s`", as.Operator.UserName),
+			fmt.Sprintf("This day already taken by `%s`", as.Operator),
 			NoParseMode,
 		)
 		return nil
 	}
 
-	op := &db.Operator{
-		UserName:  msg.From.UserName,
-		FirstName: msg.From.FirstName,
-		LastName:  msg.From.LastName,
-	}
-	err = op.GetByUserName()
-	if err != nil {
-		err = op.Insert()
-		if err != nil {
-			logger.Log.Error().Err(err).Send()
-			return err
-		}
-	}
-
-	a := &db.Assignment{ChatID: msg.Chat.ID, DutyDate: *dutydate, Operator: op}
+	a := assignment.Assignment{ChatID: msg.Chat.ID, At: dutydate, Operator: msg.From.UserName}
 	logger.Log.Printf("new assignment: %+v", a)
-	err = a.Insert()
+	err = assignment.AssignmentRepo.AddAssignment(
+		context.Background(),
+		a,
+	)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
 		return err
@@ -219,21 +224,27 @@ func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 		}
 	}
 
-	as, err := db.GetAssignmentByDate(msg.Chat.ID, dutydate)
+	as, err := assignment.AssignmentRepo.GetAssignmentByDate(
+		context.Background(),
+		dutydate,
+		msg.Chat.ID)
 	if err != nil {
 		sendMessage(
 			bot,
 			msg.Chat.ID,
 			fmt.Sprintf(
-				"no assignments for %s",
+				"Error getting assignments for %s",
 				dutydate.Format(utils.AssignDateFormat),
 			),
 			NoParseMode,
 		)
 		return err
 	}
+	if as.Operator == "" {
+		return nil
+	}
 
-	err = as.Delete()
+	err = assignment.AssignmentRepo.DeleteAssignment(context.Background(), as.ID)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
 		sendMessage(
@@ -250,7 +261,7 @@ func resetAssign(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 		msg.Chat.ID,
 		fmt.Sprintf(
 			"@%s is unassigned from %s",
-			as.Operator.UserName,
+			as.Operator,
 			dutydate.Format(utils.AssignDateFormat),
 		),
 		NoParseMode,
@@ -303,7 +314,10 @@ func freeSlots(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 }
 
 func getFreeSlotsTable(chatID int64, weeks int) (string, error) {
-	slots, err := db.GetFreeSlots(weeks, chatID)
+	slots, err := assignment.AssignmentRepo.GetFreeSlots(
+		context.Background(),
+		utils.GetToday().Add(utils.WeekDuration*time.Duration(weeks)),
+		chatID)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
 		return "", err
@@ -358,7 +372,10 @@ func show(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 }
 
 func getAssignmentsTable(chatID int64, weeks int) (string, error) {
-	assignments, err := db.GetAssignmentSchedule(weeks, chatID)
+	assignments, err := assignment.AssignmentRepo.GetAssignmentSchedule(
+		context.Background(),
+		utils.GetToday().Add(utils.WeekDuration*time.Duration(weeks)),
+		chatID)
 	if err != nil {
 		logger.Log.Error().Stack().Err(err).Send()
 		return "", fmt.Errorf("couldn't get assignments")
@@ -367,8 +384,8 @@ func getAssignmentsTable(chatID int64, weeks int) (string, error) {
 	schedule := utils.NewPrettyTable()
 
 	for _, ass := range assignments {
-		dutyDate := ass.DutyDate.Format(utils.HumanDateFormat)
-		schedule.AddRow([]string{ass.Operator.UserName, dutyDate})
+		dutyDate := ass.At.Format(utils.HumanDateFormat)
+		schedule.AddRow([]string{ass.Operator, dutyDate})
 	}
 	table, err := schedule.String()
 	if err != nil {
