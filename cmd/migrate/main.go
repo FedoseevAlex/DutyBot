@@ -3,7 +3,8 @@ package main
 import (
 	"os"
 
-	_ "github.com/jackc/pgx"
+	_ "github.com/lib/pq"
+
 	"github.com/pkg/errors"
 	"github.com/pressly/goose"
 	"github.com/spf13/viper"
@@ -36,7 +37,7 @@ func runMigrations() error {
 	}
 	command := os.Args[1]
 
-	db, err := goose.OpenDBWithDriver("postgres", viper.GetString("DBConnectString"))
+	db, err := goose.OpenDBWithDriver(viper.GetString("DBDriver"), viper.GetString("DBConnectString"))
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Cannot connect to database")
 		return err
