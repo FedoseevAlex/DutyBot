@@ -42,6 +42,7 @@ func handleRequests(_ http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Log.Error().
 			Err(err).
+			Stack().
 			Msg("Failed to read body contents")
 		return
 	}
@@ -52,6 +53,7 @@ func handleRequests(_ http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Log.Error().
 			Err(err).
+			Stack().
 			Msg("Unable to unmarshal json update from telegram")
 		return
 	}
@@ -60,6 +62,7 @@ func handleRequests(_ http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Log.Error().
 			Err(err).
+			Stack().
 			Msg("Unable to process update from telegram")
 	}
 }
@@ -69,6 +72,7 @@ func StartBot() error {
 	if err != nil {
 		logger.Log.Error().
 			Err(err).
+			Stack().
 			Msg("Unable to init bot")
 		return err
 	}
@@ -82,7 +86,8 @@ func StartBot() error {
 	if err != nil {
 		logger.Log.Error().
 			Err(err).
-			Msg("")
+			Stack().
+			Send()
 		return err
 	}
 
@@ -155,12 +160,17 @@ func scheduleFreeSlotsTask(bot *tgbot.BotAPI) {
 	if err != nil {
 		logger.Log.Error().
 			Err(err).
+			Stack().
 			Msg("Unable to schedule task")
 	}
 }
 
 func initBot() error {
 	if err := config.ReadConfig(); err != nil {
+		logger.Log.Error().
+			Err(err).
+			Stack().
+			Msg("Read config failed")
 		return err
 	}
 
@@ -169,13 +179,19 @@ func initBot() error {
 
 	_, err := assignment.InitAssignmentRepo(context.Background(), viper.GetString("DBConnectString"))
 	if err != nil {
-		logger.Log.Error().Stack().Err(err).Send()
+		logger.Log.Error().
+			Stack().
+			Err(err).
+			Msg("failed go init assignment repo")
 		return err
 	}
 
 	bot, err = tgbot.NewBotAPI(viper.GetString("BotToken"))
 	if err != nil {
-		logger.Log.Error().Stack().Err(err).Send()
+		logger.Log.Error().
+			Stack().
+			Err(err).
+			Msg("failed to create bot")
 		return err
 	}
 	scheduleAnnounceDutyTask(bot)

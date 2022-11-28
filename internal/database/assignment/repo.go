@@ -6,9 +6,13 @@ import (
 	"sort"
 	"time"
 
+	// Load postgres dialect for goqu
+	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
+
 	"github.com/FedoseevAlex/DutyBot/internal/calendar"
 	"github.com/FedoseevAlex/DutyBot/internal/logger"
 	"github.com/FedoseevAlex/DutyBot/internal/utils"
+
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/google/uuid"
@@ -24,14 +28,13 @@ var (
 )
 
 func (asr *AssignmentRepoData) AddAssignment(ctx context.Context, as Assignment) error {
-	sql, params, err := goqu.Insert(assignmentsTableName).
-		Rows(as).ToSQL()
+	sql, params, err := goqu.Insert(assignmentsTableName).Rows(as).ToSQL()
 	if err != nil {
 		return err
 	}
 	logger.Log.Debug().Str("sql", sql).Send()
 
-	result, err := asr.conn.Exec(ctx, sql, params)
+	result, err := asr.conn.Exec(ctx, sql, params...)
 	if err != nil {
 		return err
 	}
@@ -68,21 +71,20 @@ func (asr *AssignmentRepoData) GetAssignmentSchedule(
 	today := utils.GetToday()
 
 	sql, params, err := goqu.From(assignmentsTableName).
-		Select("id", "at", "chat_id", "operator").
-		Where(goqu.Ex{
-			"chat_id": chatID,
-			"at": goqu.I("at").
+		Select(Assignment{}).
+		Where(goqu.And(
+			goqu.C("chat_id").Eq(chatID),
+			goqu.C("at").
 				Between(
 					exp.NewRangeVal(
 						today.Format(utils.DateFormat),
-						due.Format(utils.DateFormat),
-					)),
-		}).
+						due.Format(utils.DateFormat))),
+		)).
 		Order(goqu.I("at").Desc()).
 		ToSQL()
 	logger.Log.Debug().Str("sql", sql).Send()
-
 	if err != nil {
+		logger.Log.Error().Stack().Err(err).Send()
 		return nil, err
 	}
 
@@ -98,15 +100,10 @@ func (asr *AssignmentRepoData) GetAssignmentSchedule(
 	}
 	defer rows.Close()
 
-	as := make([]Assignment, 0, 10)
-	for rows.Next() {
-		a := Assignment{}
-		err = rows.Scan(a)
-		if err != nil {
-			logger.Log.Error().Stack().Err(err).Send()
-			return []Assignment{}, err
-		}
-		as = append(as, a)
+	as, err := pgx.CollectRows(rows, pgx.RowToStructByName[Assignment])
+	if err != nil {
+		logger.Log.Error().Stack().Err(err).Send()
+		return []Assignment{}, err
 	}
 	return as, nil
 }
@@ -118,7 +115,7 @@ func (asr *AssignmentRepoData) GetAssignmentScheduleAllChats(
 	today := utils.GetToday()
 
 	sql, params, err := goqu.From(assignmentsTableName).
-		Select("id", "at", "chat_id", "operator").
+		Select("uuid", "at", "chat_id", "operator").
 		Where(goqu.Ex{
 			"at": goqu.I("at").
 				Between(
@@ -147,15 +144,10 @@ func (asr *AssignmentRepoData) GetAssignmentScheduleAllChats(
 	}
 	defer rows.Close()
 
-	as := make([]Assignment, 0, 10)
-	for rows.Next() {
-		a := Assignment{}
-		err = rows.Scan(a)
-		if err != nil {
-			logger.Log.Error().Stack().Err(err).Send()
-			return []Assignment{}, err
-		}
-		as = append(as, a)
+	as, err := pgx.CollectRows(rows, pgx.RowToStructByName[Assignment])
+	if err != nil {
+		logger.Log.Error().Stack().Err(err).Send()
+		return []Assignment{}, err
 	}
 	return as, nil
 }
@@ -165,7 +157,6 @@ func (asr *AssignmentRepoData) GetAssignmentByDate(
 	date time.Time,
 	chatID int64) (Assignment, error) {
 
-	a := Assignment{}
 	sql, params, err := goqu.From(assignmentsTableName).
 		Select(Assignment{}).
 		Where(goqu.Ex{
@@ -173,13 +164,17 @@ func (asr *AssignmentRepoData) GetAssignmentByDate(
 			"chat_id": chatID,
 		}).
 		ToSQL()
+	logger.Log.Debug().Str("sql", sql).Send()
 	if err != nil {
 		return Assignment{}, err
 	}
 
-	row := asr.conn.QueryRow(ctx, sql, params...)
+	rows, err := asr.conn.Query(ctx, sql, params...)
+	if err != nil {
+		return Assignment{}, err
+	}
 
-	err = row.Scan(a)
+	as, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[Assignment])
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		return Assignment{}, nil
@@ -187,7 +182,7 @@ func (asr *AssignmentRepoData) GetAssignmentByDate(
 		return Assignment{}, err
 	default:
 	}
-	return a, nil
+	return as, nil
 }
 
 // Return free duty slots for
@@ -205,16 +200,15 @@ func (asr *AssignmentRepoData) GetFreeSlots(
 
 	sql, params, err := goqu.From(assignmentsTableName).
 		Select("at").
-		Where(goqu.Ex{
-			"chat_id": chatID,
-			"at": goqu.I("at").
-				Between(
-					exp.NewRangeVal(
-						today.Format(utils.DateFormat),
-						due.Format(utils.DateFormat),
-					)),
-		}).
+		Where(goqu.And(
+			goqu.Ex{"chat_id": chatID},
+			goqu.I("at").Between(
+				exp.NewRangeVal(
+					today.Format(utils.DateFormat),
+					due.Format(utils.DateFormat),
+				)))).
 		ToSQL()
+	logger.Log.Debug().Str("sql", sql).Send()
 
 	rows, _ := asr.conn.Query(ctx, sql, params...)
 	defer rows.Close()
@@ -226,19 +220,25 @@ func (asr *AssignmentRepoData) GetFreeSlots(
 	default:
 	}
 
-	for rows.Next() {
-		date := time.Time{}
-		err = rows.Scan(&date)
-		if err != nil {
-			logger.Log.Error().Stack().Err(err).Send()
-			return []time.Time{}, err
-		}
-
-		dates.Remove(date)
+	scheduledDates, err := pgx.CollectRows(
+		rows,
+		func(row pgx.CollectableRow) (time.Time, error) {
+			var t time.Time
+			err := row.Scan(&t)
+			if err != nil {
+				return time.Time{}, err
+			}
+			return t, nil
+		})
+	if err != nil {
+		return []time.Time{}, err
+	}
+	for _, scheduledDate := range scheduledDates {
+		dates.Remove(scheduledDate)
 	}
 
 	freedates := make([]time.Time, 0, 10)
-	for freedate := range *dates {
+	for freedate := range dates {
 		freedates = append(freedates, freedate)
 	}
 

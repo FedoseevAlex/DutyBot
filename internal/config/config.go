@@ -18,11 +18,6 @@ func ReadConfig() error {
 		return err
 	}
 
-	viper.SetDefault("LogPath", "/var/log/dutybot.log")
-	if err := viper.BindEnv("LogPath", "LOG_PATH"); err != nil {
-		return err
-	}
-
 	viper.SetDefault("ListenAddress", "0.0.0.0:8080")
 	if err := viper.BindEnv("ListenAddress", "LISTEN_ADDRESS"); err != nil {
 		return err

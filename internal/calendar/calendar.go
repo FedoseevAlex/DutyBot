@@ -19,12 +19,12 @@ const (
 
 type TimeSet map[time.Time]struct{}
 
-func (ts *TimeSet) Add(element time.Time) {
-	(*ts)[element] = struct{}{}
+func (ts TimeSet) Add(element time.Time) {
+	ts[element] = struct{}{}
 }
 
-func (ts *TimeSet) Remove(element time.Time) {
-	delete(*ts, element)
+func (ts TimeSet) Remove(element time.Time) {
+	delete(ts, element)
 }
 
 func buildQueryString(address string, endpoint []string, queryParams map[string]string) string {
@@ -90,7 +90,7 @@ func IsHoliday(date time.Time) (isHoliday bool) {
 
 // Get working days as map time.Time: bool.
 // True value means that day in key is holiday.
-func GetWorkingDays(start time.Time, stop time.Time) (*TimeSet, error) {
+func GetWorkingDays(start time.Time, stop time.Time) (TimeSet, error) {
 	client := http.DefaultClient
 
 	URL := buildQueryString(
@@ -125,7 +125,7 @@ func GetWorkingDays(start time.Time, stop time.Time) (*TimeSet, error) {
 		return nil, err
 	}
 
-	calendar := &TimeSet{}
+	calendar := TimeSet{}
 	for date, i := start, 0; !date.After(stop); date, i = date.Add(utils.DayDuration), i+1 {
 		if respData[i] == '1' {
 			continue

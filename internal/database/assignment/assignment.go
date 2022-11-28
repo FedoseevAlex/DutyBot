@@ -28,13 +28,15 @@ type AssignmentRepoer interface {
 }
 
 type Assignment struct {
-	ID uuid.UUID
+	ID uuid.UUID `db:"uuid"`
 	// Assignment day
-	At time.Time
+	At time.Time `db:"at"`
 	// From which chat assignment came from
-	ChatID int64
+	ChatID int64 `db:"chat_id"`
 	// Assignee for duty
-	Operator string
+	Operator string `db:"operator"`
+	// When assignment was created
+	CreatedAt time.Time `db:"created_at"`
 }
 
 func InitAssignmentRepo(ctx context.Context, dsn string) (AssignmentRepoer, error) {

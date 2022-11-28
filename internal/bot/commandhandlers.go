@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/FedoseevAlex/DutyBot/internal/calendar"
@@ -185,14 +186,14 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 		return nil
 	}
 
-	a := assignment.Assignment{ChatID: msg.Chat.ID, At: dutydate, Operator: msg.From.UserName}
+	a := assignment.Assignment{ChatID: msg.Chat.ID, At: dutydate, Operator: msg.From.UserName, ID: uuid.New(), CreatedAt: time.Now()}
 	logger.Log.Printf("new assignment: %+v", a)
 	err = assignment.AssignmentRepo.AddAssignment(
 		context.Background(),
 		a,
 	)
 	if err != nil {
-		logger.Log.Error().Err(err).Send()
+		logger.Log.Error().Stack().Err(err).Send()
 		return err
 	}
 
