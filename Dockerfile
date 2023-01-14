@@ -23,6 +23,8 @@ FROM alpine:latest
 ENV APP_USER dutybot
 ENV APP_HOME /dutybot
 
+RUN apk --no-cache add ca-certificates \
+  && update-ca-certificates
 RUN addgroup -S $APP_USER && \
     adduser -S $APP_USER -G $APP_USER && \
     mkdir -p $APP_HOME && \
