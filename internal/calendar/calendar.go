@@ -3,7 +3,7 @@ package calendar
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -76,7 +76,7 @@ func IsHoliday(date time.Time) (isHoliday bool) {
 	}
 	defer utils.Close(resp.Body)
 
-	respData, err := ioutil.ReadAll(resp.Body)
+	respData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
@@ -120,7 +120,7 @@ func GetWorkingDays(start time.Time, stop time.Time) (TimeSet, error) {
 	}
 	defer utils.Close(resp.Body)
 
-	respData, err := ioutil.ReadAll(resp.Body)
+	respData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

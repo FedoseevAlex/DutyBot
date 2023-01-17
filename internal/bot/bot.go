@@ -3,7 +3,7 @@ package bot
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -38,7 +38,7 @@ func processUpdate(update tgbot.Update) error {
 func handleRequests(_ http.ResponseWriter, req *http.Request) {
 	defer utils.Close(req.Body)
 
-	bodyBytes, err := ioutil.ReadAll(req.Body)
+	bodyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		logger.Log.Error().
 			Err(err).

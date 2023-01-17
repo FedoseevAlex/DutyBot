@@ -78,7 +78,6 @@ func operator(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 		context.Background(),
 		utils.GetToday(),
 		msg.Chat.ID)
-
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
 		reply := tgbot.NewMessage(msg.Chat.ID, "Couldn't fetch today's duty.")
@@ -186,7 +185,13 @@ func assign(bot *tgbot.BotAPI, msg *tgbot.Message) error {
 		return nil
 	}
 
-	a := assignment.Assignment{ChatID: msg.Chat.ID, At: dutydate, Operator: msg.From.UserName, ID: uuid.New(), CreatedAt: time.Now()}
+	a := assignment.Assignment{
+		ChatID:    msg.Chat.ID,
+		At:        dutydate,
+		Operator:  msg.From.UserName,
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+	}
 	logger.Log.Printf("new assignment: %+v", a)
 	err = assignment.AssignmentRepo.AddAssignment(
 		context.Background(),
