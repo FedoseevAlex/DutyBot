@@ -67,7 +67,8 @@ func (asr *AssignmentRepoData) DeleteAssignment(ctx context.Context, uid uuid.UU
 func (asr *AssignmentRepoData) GetAssignmentSchedule(
 	ctx context.Context,
 	due time.Time,
-	chatID int64) ([]Assignment, error) {
+	chatID int64,
+) ([]Assignment, error) {
 	today := utils.GetToday()
 
 	sql, params, err := goqu.From(assignmentsTableName).
@@ -111,7 +112,8 @@ func (asr *AssignmentRepoData) GetAssignmentSchedule(
 // Get assignments for all chats due specified date
 func (asr *AssignmentRepoData) GetAssignmentScheduleAllChats(
 	ctx context.Context,
-	due time.Time) ([]Assignment, error) {
+	due time.Time,
+) ([]Assignment, error) {
 	today := utils.GetToday()
 
 	sql, params, err := goqu.From(assignmentsTableName).
@@ -155,8 +157,8 @@ func (asr *AssignmentRepoData) GetAssignmentScheduleAllChats(
 func (asr *AssignmentRepoData) GetAssignmentByDate(
 	ctx context.Context,
 	date time.Time,
-	chatID int64) (Assignment, error) {
-
+	chatID int64,
+) (Assignment, error) {
 	sql, params, err := goqu.From(assignmentsTableName).
 		Select(Assignment{}).
 		Where(goqu.Ex{
@@ -190,8 +192,8 @@ func (asr *AssignmentRepoData) GetAssignmentByDate(
 func (asr *AssignmentRepoData) GetFreeSlots(
 	ctx context.Context,
 	due time.Time,
-	chatID int64) ([]time.Time, error) {
-
+	chatID int64,
+) ([]time.Time, error) {
 	today := utils.GetToday()
 	dates, err := calendar.GetWorkingDays(today, due)
 	if err != nil {
@@ -237,7 +239,7 @@ func (asr *AssignmentRepoData) GetFreeSlots(
 		dates.Remove(scheduledDate)
 	}
 
-	freedates := make([]time.Time, 0, 10)
+	freedates := make([]time.Time, 0)
 	for freedate := range dates {
 		freedates = append(freedates, freedate)
 	}
@@ -253,7 +255,6 @@ func (asr AssignmentRepoData) GetAllChats(ctx context.Context) ([]int64, error) 
 		Select("chat_id").
 		Distinct().
 		ToSQL()
-
 	if err != nil {
 		return []int64{}, err
 	}
@@ -268,7 +269,7 @@ func (asr AssignmentRepoData) GetAllChats(ctx context.Context) ([]int64, error) 
 		return []int64{}, err
 	default:
 	}
-	chats := make([]int64, 0, 10)
+	chats := make([]int64, 0)
 	for rows.Next() {
 		var chatID int64
 		err := rows.Scan(&chatID)
