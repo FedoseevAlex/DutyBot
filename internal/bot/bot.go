@@ -68,6 +68,7 @@ func handleRequests(_ http.ResponseWriter, req *http.Request) {
 }
 
 func StartBot() error {
+	logger.InitLogger()
 	err := initBot()
 	if err != nil {
 		logger.Log.Error().
@@ -77,7 +78,7 @@ func StartBot() error {
 		return err
 	}
 
-	if false {
+	if viper.GetBool("HookMode") {
 		err = StartBotHook()
 	} else {
 		err = StartBotLongPoll()

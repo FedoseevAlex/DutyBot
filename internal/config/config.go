@@ -13,6 +13,11 @@ func ReadConfig() error {
 		return err
 	}
 
+	viper.SetDefault("HookMode", false)
+	if err := viper.BindEnv("HookMode", "HOOK_MODE"); err != nil {
+		return err
+	}
+
 	viper.SetDefault("DBDriver", "postgres")
 	if err := viper.BindEnv("DBDriver", "DB_DRIVER"); err != nil {
 		return err
