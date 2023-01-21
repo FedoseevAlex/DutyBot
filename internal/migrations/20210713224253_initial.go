@@ -16,7 +16,7 @@ func upInitial(tx *sql.Tx) error {
 		uuid UUID DEFAULT uuid_generate_v4(),
 		at DATE NOT NULL,
 		operator TEXT,
-		chat_id INTEGER,
+		chat_id BIGINT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(operator, chat_id, at)
 	)
