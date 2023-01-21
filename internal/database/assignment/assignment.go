@@ -24,7 +24,7 @@ type AssignmentRepoer interface {
 	GetAssignmentByDate(ctx context.Context, due time.Time, chatID int64) (Assignment, error)
 	GetFreeSlots(ctx context.Context, due time.Time, chatID int64) ([]time.Time, error)
 	GetAllChats(ctx context.Context) ([]int64, error)
-	Close(ctx context.Context) error
+	GetSchedule(ctx context.Context, from, due time.Time, chatID int64) ([]Assignment, error)
 }
 
 type Assignment struct {
