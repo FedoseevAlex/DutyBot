@@ -63,6 +63,34 @@ func (asr *AssignmentRepoData) DeleteAssignment(ctx context.Context, uid uuid.UU
 	return nil
 }
 
+// Return schedule due specified date and for specified chat
+func (asr *AssignmentRepoData) GetSchedule(
+	ctx context.Context,
+	from time.Time,
+	due time.Time,
+	chatID int64,
+) ([]Assignment, error) {
+	assignments, err := asr.GetAssignmentSchedule(ctx, due, chatID)
+	if err != nil {
+		logger.Log.Error().Stack().Err(err).Send()
+		return nil, err
+	}
+	assignmentsMap := make(map[time.Time]Assignment)
+	for _, assignment := range assignments {
+		assignmentsMap[utils.GetDate(assignment.At)] = assignment
+	}
+
+	result := make([]Assignment, 0, 10)
+	for date := utils.GetDate(from); due.After(date); date = date.Add(utils.DayDuration) {
+		assignment, ok := assignmentsMap[utils.GetDate(date)]
+		if !ok {
+			assignment = Assignment{At: date, ChatID: chatID}
+		}
+		result = append(result, assignment)
+	}
+	return result, nil
+}
+
 // Return assignments due specified date and for specified chat
 func (asr *AssignmentRepoData) GetAssignmentSchedule(
 	ctx context.Context,
@@ -282,7 +310,7 @@ func (asr AssignmentRepoData) GetAllChats(ctx context.Context) ([]int64, error) 
 	return chats, nil
 }
 
-func (asr AssignmentRepoData) Close(ctx context.Context) error {
+func (asr AssignmentRepoData) Close() error {
 	asr.conn.Close()
 	return nil
 }

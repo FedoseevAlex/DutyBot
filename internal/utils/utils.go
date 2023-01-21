@@ -111,3 +111,12 @@ func Close(c io.Closer) {
 			Msg("Closing error")
 	}
 }
+
+func GetStartOfWeek(t time.Time) time.Time {
+	if t.Weekday() == time.Sunday {
+		t = t.AddDate(0, 0, -6)
+	} else {
+		t = t.AddDate(0, 0, -int(t.Weekday())+1)
+	}
+	return t
+}

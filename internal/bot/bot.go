@@ -3,10 +3,12 @@ package bot
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
-	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/spf13/viper"
 
 	"github.com/FedoseevAlex/DutyBot/internal/config"
@@ -19,18 +21,40 @@ import (
 var bot *tgbot.BotAPI
 
 func processUpdate(update tgbot.Update) error {
-	var msg *tgbot.Message
-	if update.EditedMessage != nil {
-		msg = update.EditedMessage
-	} else {
-		msg = update.Message
+	var command Command
+	switch {
+	case update.Message != nil:
+		command = Command{
+			Action:    update.Message.Command(),
+			Arguments: update.Message.CommandArguments(),
+			Operator:  update.SentFrom().UserName,
+			ChatID:    update.FromChat().ID,
+		}
+	case update.EditedMessage != nil:
+		command = Command{
+			Action:    update.EditedMessage.Command(),
+			Arguments: update.EditedMessage.CommandArguments(),
+			Operator:  update.SentFrom().UserName,
+			ChatID:    update.FromChat().ID,
+		}
+	case update.CallbackQuery != nil:
+		action, arguments, _ := strings.Cut(update.CallbackData(), " ")
+		command = Command{
+			Action:     action,
+			Arguments:  arguments,
+			Operator:   update.SentFrom().UserName,
+			ChatID:     update.FromChat().ID,
+			KeyboardID: update.CallbackQuery.Message.MessageID,
+		}
+		return processCallback(command)
+	default:
+		logger.Log.Info().Str("update", fmt.Sprintf("%+v", update)).Send()
+		return nil
 	}
 
-	if msg.IsCommand() {
-		err := processCommands(bot, msg)
-		if err != nil {
-			return err
-		}
+	err := processCommands(command)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -118,16 +142,9 @@ func StartBotLongPoll() error {
 	updateConfig := tgbot.UpdateConfig{}
 	updateConfig.Timeout = 5
 
-	updates, err := bot.GetUpdatesChan(updateConfig)
-	if err != nil {
-		logger.Log.Error().
-			Err(err).
-			Msg("Unable to start long poll bot")
-		return err
-	}
-
+	updates := bot.GetUpdatesChan(updateConfig)
 	for update := range updates {
-		err = processUpdate(update)
+		err := processUpdate(update)
 		if err != nil {
 			logger.Log.Error().
 				Stack().

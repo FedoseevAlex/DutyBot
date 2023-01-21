@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	tgbot "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/FedoseevAlex/DutyBot/internal/database/assignment"
 	"github.com/FedoseevAlex/DutyBot/internal/logger"
@@ -28,7 +28,6 @@ func announceDutyTask(bot *tgbot.BotAPI) {
 	for _, assignment := range assignments {
 		logger.Log.Debug().Msgf("Sending %+v\n", assignment)
 		sendMessage(
-			bot,
 			assignment.ChatID,
 			fmt.Sprintf(msgFormat, assignment.Operator),
 			NoParseMode,
@@ -61,7 +60,6 @@ func warnAboutFreeSlots(bot *tgbot.BotAPI) {
 		}
 
 		sendMessage(
-			bot,
 			chatID,
 			fmt.Sprintf("Free slots still available!\n%s\n", outputSlots),
 			NoParseMode,
