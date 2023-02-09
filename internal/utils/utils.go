@@ -84,7 +84,7 @@ func GetToday() time.Time {
 // This function returns time.Time object
 // representing tomorrow date.
 func GetTomorrow() time.Time {
-	y, m, d := time.Now().Date()
+	y, m, d := GetToday().Date()
 	today := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 	dayDuration, _ := time.ParseDuration("1d")
 	tomorrow := today.Add(dayDuration)
