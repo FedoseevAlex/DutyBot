@@ -160,11 +160,9 @@ func StartBotLongPoll() error {
 	return nil
 }
 
-func scheduleAnnounceDutyTask(bot *tgbot.BotAPI) {
-	// Use this wrapper as NewTask accepts functions
-	// with signature func () error
+func scheduleAnnounceDutyTask() {
 	announce := func() {
-		announceDutyTask(bot)
+		announceDutyTask()
 	}
 	_, err := tasks.AddTask(viper.GetString("DutyAnnounceSchedule"), announce)
 	if err != nil {
@@ -174,9 +172,9 @@ func scheduleAnnounceDutyTask(bot *tgbot.BotAPI) {
 	}
 }
 
-func scheduleFreeSlotsTask(bot *tgbot.BotAPI) {
+func scheduleFreeSlotsTask() {
 	checkFreeSlots := func() {
-		warnAboutFreeSlots(bot)
+		warnAboutFreeSlots()
 	}
 	_, err := tasks.AddTask(viper.GetString("FreeSlotsWarnSchedule"), checkFreeSlots)
 	if err != nil {
@@ -216,8 +214,8 @@ func initBot() error {
 			Msg("failed to create bot")
 		return err
 	}
-	scheduleAnnounceDutyTask(bot)
-	scheduleFreeSlotsTask(bot)
+	scheduleAnnounceDutyTask()
+	scheduleFreeSlotsTask()
 	tasks.Start()
 	logger.Log.Debug().Msg("Starting dutybot...")
 	return nil

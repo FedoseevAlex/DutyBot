@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	tgbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-
 	"github.com/FedoseevAlex/DutyBot/internal/database/assignment"
 	"github.com/FedoseevAlex/DutyBot/internal/logger"
 	"github.com/FedoseevAlex/DutyBot/internal/utils"
 )
 
-func announceDutyTask(bot *tgbot.BotAPI) {
+func announceDutyTask() {
 	msgFormat := "@%s is on duty today"
 	logger.Log.Debug().Msg("Start duty announcing")
 	assignments, err := assignment.AssignmentRepo.GetAssignmentScheduleAllChats(
@@ -35,7 +33,7 @@ func announceDutyTask(bot *tgbot.BotAPI) {
 	}
 }
 
-func warnAboutFreeSlots(bot *tgbot.BotAPI) {
+func warnAboutFreeSlots() {
 	logger.Log.Debug().Msg("Start freeslots announcing")
 
 	chats, err := assignment.AssignmentRepo.GetAllChats(context.Background())

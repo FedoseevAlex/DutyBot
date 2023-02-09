@@ -80,7 +80,7 @@ func (asr *AssignmentRepoData) GetSchedule(
 		assignmentsMap[utils.GetDate(assignment.At)] = assignment
 	}
 
-	result := make([]Assignment, 0, 10)
+	var result []Assignment
 	for date := utils.GetDate(from); due.After(date); date = date.Add(utils.DayDuration) {
 		assignment, ok := assignmentsMap[utils.GetDate(date)]
 		if !ok {
