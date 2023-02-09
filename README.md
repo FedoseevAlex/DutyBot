@@ -55,3 +55,15 @@ docker push fedoseevalex/dutybot:latest
 docker pull fedoseevalex/dutybot:latest
 docker run --env-file .env --expose 8443:8433 --name dutybot --detach fedoseevalex/dutybot:latest 
 ```
+
+# How to make self signed certificate for bot
+Create keys first
+```shell
+openssl req -newkey rsa:2048 -sha256 -nodes -keyout <private key name>.key -x509 -days 365 -out <public key name>.pem -subj "/C=<Country code>/ST=<city>/L=<location>/O=<organization>/CN=<server ip>"
+```
+
+And then inform telegram that you will use self signed cert
+```shell
+curl -F "url=https://<server ip>:<hook port>/<bot token>" -F "certificate=@<public key name>.pem" <https://api.telegram.org/bot><bot token>/setWebhook
+```
+
