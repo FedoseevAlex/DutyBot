@@ -55,7 +55,7 @@ func initHandlers() {
 func showButtons(command Command) error {
 	var err error
 
-	from := time.Now()
+	from := utils.GetToday()
 	if command.Arguments != "" {
 		from, err = parseTime(command.Arguments)
 		if err != nil {
@@ -90,12 +90,21 @@ func processCallback(command Command) error {
 		}
 		assignDate, _ := parseTime(command.Arguments)
 		refreshKeyboard(command.ChatID, command.KeyboardID, assignDate)
+
 	case "showWeek":
 		from, err := parseTime(command.Arguments)
 		if err != nil {
 			return err
 		}
 		changeWeekOnKeyboard(command.ChatID, command.KeyboardID, from)
+
+	case "reset":
+		err := resetAssign(command)
+		if err != nil {
+			return err
+		}
+		date, _ := parseTime(command.Arguments)
+		refreshKeyboard(command.ChatID, command.KeyboardID, date)
 	}
 	return nil
 }
@@ -229,7 +238,7 @@ func assignAndPrint(command Command) error {
 	}
 	assignmentDate, _ := parseTime(command.Arguments)
 	_, assignmentWeek := assignmentDate.ISOWeek()
-	_, currentWeek := time.Now().ISOWeek()
+	_, currentWeek := utils.GetToday().ISOWeek()
 	weeks := assignmentWeek - currentWeek
 	if weeks < DefaultShowWeeks {
 		weeks = DefaultShowWeeks
@@ -289,7 +298,7 @@ func assign(command Command) error {
 		At:        dutydate,
 		Operator:  command.Operator,
 		ID:        uuid.New(),
-		CreatedAt: time.Now(),
+		CreatedAt: utils.GetToday(),
 	}
 	logger.Log.Printf("new assignment: %+v", a)
 	err = assignment.AssignmentRepo.AddAssignment(

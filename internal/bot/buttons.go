@@ -20,12 +20,18 @@ func makeCalendarButtons(schedule []assignment.Assignment) tgbot.InlineKeyboardM
 	keyboard := make([][]tgbot.InlineKeyboardButton, 0)
 
 	for _, assignment := range schedule {
-		text := fmt.Sprintf("assign %s", assignment.At.Format(utils.AssignDateFormat))
-		button := tgbot.NewInlineKeyboardButtonData(
+		buttons := make([]tgbot.InlineKeyboardButton, 0, 2)
+		buttons = append(buttons, tgbot.NewInlineKeyboardButtonData(
 			fmt.Sprintf("%s %s", assignment.At.Format("02 Jan, Mon"), assignment.Operator),
-			text,
+			fmt.Sprintf("assign %s", assignment.At.Format(utils.AssignDateFormat))),
 		)
-		keyboard = append(keyboard, tgbot.NewInlineKeyboardRow(button))
+		if assignment.Operator != "" {
+			buttons = append(buttons, tgbot.NewInlineKeyboardButtonData(
+				"reset",
+				fmt.Sprintf("reset %s", assignment.At.Format(utils.AssignDateFormat))),
+			)
+		}
+		keyboard = append(keyboard, tgbot.NewInlineKeyboardRow(buttons...))
 	}
 
 	scheduleStart := schedule[0].At
