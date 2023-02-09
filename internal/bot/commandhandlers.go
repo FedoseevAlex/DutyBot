@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strconv"
 	"time"
@@ -49,6 +50,7 @@ func initHandlers() {
 		"freeslots": freeSlots,
 		"reset":     resetAssign,
 		"buttons":   showButtons,
+		"video":     reactToVideo,
 	}
 }
 
@@ -138,6 +140,20 @@ https://github.com/FedoseevAlex/DutyBot/issues
 `
 	answer := tgbot.NewMessage(command.ChatID, helpString)
 	_, err := bot.Send(answer)
+	if err != nil {
+		logger.Log.Error().Err(err).Send()
+		return err
+	}
+	return nil
+}
+
+func reactToVideo(command Command) error {
+	if rand.Float32() < 0.9 {
+		return nil
+	}
+
+	reply := tgbot.NewMessage(command.ChatID, "Hehehehehe")
+	_, err := bot.Send(reply)
 	if err != nil {
 		logger.Log.Error().Err(err).Send()
 		return err
