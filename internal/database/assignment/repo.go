@@ -69,6 +69,7 @@ func (asr *AssignmentRepoData) GetSchedule(
 	from time.Time,
 	due time.Time,
 	chatID int64,
+	filterHolidays bool,
 ) ([]Assignment, error) {
 	assignments, err := asr.GetAssignmentSchedule(ctx, due, chatID)
 	if err != nil {
@@ -82,6 +83,9 @@ func (asr *AssignmentRepoData) GetSchedule(
 
 	var result []Assignment
 	for date := utils.GetDate(from); due.After(date); date = date.Add(utils.DayDuration) {
+		if filterHolidays && (date.Weekday() == time.Sunday || date.Weekday() == time.Saturday) {
+			continue
+		}
 		assignment, ok := assignmentsMap[utils.GetDate(date)]
 		if !ok {
 			assignment = Assignment{At: date, ChatID: chatID}
