@@ -56,7 +56,9 @@ func changeWeekOnKeyboard(chatID int64, keyboardID int, from time.Time) {
 		context.Background(),
 		from,
 		from.Add(utils.WeekDuration),
-		chatID)
+		chatID,
+		true,
+	)
 	if err != nil {
 		logger.Log.Error().Stack().Err(err).Send()
 	}
@@ -75,7 +77,9 @@ func refreshKeyboard(chatID int64, keyboardID int, from time.Time) {
 		context.Background(),
 		from,
 		from.Add(utils.WeekDuration),
-		chatID)
+		chatID,
+		true,
+	)
 	if err != nil {
 		logger.Log.Error().Stack().Err(err).Send()
 	}

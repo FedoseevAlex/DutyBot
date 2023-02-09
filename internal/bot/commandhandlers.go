@@ -71,7 +71,9 @@ func showButtons(command Command) error {
 		context.Background(),
 		from,
 		from.Add(utils.WeekDuration),
-		command.ChatID)
+		command.ChatID,
+		true,
+	)
 	if err != nil {
 		sendMessage(
 			command.ChatID,
@@ -80,6 +82,7 @@ func showButtons(command Command) error {
 		)
 		return err
 	}
+
 	sendKeyboard(command.ChatID, schedule)
 	return nil
 }
