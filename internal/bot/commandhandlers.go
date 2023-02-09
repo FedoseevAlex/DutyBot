@@ -24,6 +24,7 @@ const (
 	DefaultFreeSlotWeeks = 2
 	DefaultShowWeeks     = 2
 	NoParseMode          = ""
+	heHeProbability      = 0.1
 )
 
 type Command struct {
@@ -148,7 +149,7 @@ https://github.com/FedoseevAlex/DutyBot/issues
 }
 
 func reactToVideo(command Command) error {
-	if rand.Float32() < 0.9 {
+	if rand.Float32() > heHeProbability {
 		return nil
 	}
 
