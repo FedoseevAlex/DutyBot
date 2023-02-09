@@ -24,6 +24,10 @@ func processUpdate(update tgbot.Update) error {
 	var command Command
 	switch {
 	case update.Message != nil:
+		if !update.Message.IsCommand() {
+			// Avoid non command messages (e.g. reply)
+			return nil
+		}
 		command = Command{
 			Action:    update.Message.Command(),
 			Arguments: update.Message.CommandArguments(),
