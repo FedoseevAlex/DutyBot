@@ -57,6 +57,7 @@ docker run --env-file .env --expose 8443:8433 --name dutybot --detach fedoseeval
 ```
 
 # How to make self signed certificate for bot
+Original instruction: https://core.telegram.org/bots/self-signed
 Create keys first
 ```shell
 openssl req -newkey rsa:2048 -sha256 -nodes -keyout <private key name>.key -x509 -days 365 -out <public key name>.pem -subj "/C=<Country code>/ST=<city>/L=<location>/O=<organization>/CN=<server ip>"

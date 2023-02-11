@@ -17,6 +17,15 @@ func ReadConfig() error {
 	if err := viper.BindEnv("HookMode", "HOOK_MODE"); err != nil {
 		return err
 	}
+	viper.SetDefault("CertPath", "cert")
+	if err := viper.BindEnv("CertPath", "CERT_PATH"); err != nil {
+		return err
+	}
+
+	viper.SetDefault("KeyPath", "key")
+	if err := viper.BindEnv("KeyPath", "KEY_PATH"); err != nil {
+		return err
+	}
 
 	viper.SetDefault("DBDriver", "postgres")
 	if err := viper.BindEnv("DBDriver", "DB_DRIVER"); err != nil {
@@ -25,6 +34,11 @@ func ReadConfig() error {
 
 	viper.SetDefault("ListenAddress", "0.0.0.0:8080")
 	if err := viper.BindEnv("ListenAddress", "LISTEN_ADDRESS"); err != nil {
+		return err
+	}
+
+	viper.SetDefault("ExternalAddress", "https://0.0.0.0:8443")
+	if err := viper.BindEnv("ExternalAddress", "EXTERNAL_ADDRESS"); err != nil {
 		return err
 	}
 

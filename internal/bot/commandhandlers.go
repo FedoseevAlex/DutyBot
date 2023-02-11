@@ -137,6 +137,7 @@ func help(command Command) error {
 /assign date - assign yourself for duty. Date should be in format DD-MM-YYYY
 /reset [date default=Today] - clear specified date from assignments
 /freeslots [weeks default=1] - show free duty slots
+/buttons - show buttons for assignment
 
 Found a bug? Want some features?
 Feel free to make an issue:
