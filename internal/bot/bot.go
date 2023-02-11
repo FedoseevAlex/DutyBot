@@ -124,19 +124,31 @@ func StartBot() error {
 }
 
 func StartBotHook() error {
-	http.HandleFunc("/"+bot.Token, handleRequests)
+	botURL := "/" + bot.Token
+	http.HandleFunc(botURL, handleRequests)
 
-	err := http.ListenAndServeTLS(
-		viper.GetString("ListenAddr"),
+	webhookConfig, err := tgbot.NewWebhookWithCert(
+		viper.GetString("ExternalAddress")+botURL,
+		tgbot.FilePath(viper.GetString("CertPath")),
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = bot.Request(webhookConfig)
+	if err != nil {
+		return fmt.Errorf("start boot hook: set webhook: %w", err)
+	}
+	logger.Log.Info().Msg("Webhook was set!")
+
+	err = http.ListenAndServeTLS(
+		viper.GetString("ListenAddress"),
 		viper.GetString("CertPath"),
 		viper.GetString("KeyPath"),
 		nil,
 	)
 	if err != nil {
-		logger.Log.Error().
-			Err(err).
-			Msg("Unable to start https server")
-		return err
+		return fmt.Errorf("start boot hook: listen and server tls: %w", err)
 	}
 	logger.Log.Debug().Msg("Server shutdown")
 	return nil
