@@ -18,7 +18,7 @@ func RunMigrations(command string) error {
 
 	db, err := goose.OpenDBWithDriver(viper.GetString("DBDriver"), viper.GetString("DBConnectString"))
 	if err != nil {
-		log.Error().Err(err).Msg("Cannot connect to database")
+		log.Error().Err(err).Msg("Cannot open db")
 		return err
 	}
 
@@ -31,7 +31,7 @@ func RunMigrations(command string) error {
 
 	err = goose.Run(command, db, ".")
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to close db")
+		log.Error().Stack().Err(err).Msg("Failed to run migration")
 		return err
 	}
 	return nil

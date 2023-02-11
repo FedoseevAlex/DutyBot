@@ -114,8 +114,9 @@ func StartBot() error {
 
 	if err != nil {
 		logger.Log.Error().
-			Err(err).
+			Bool("hook_mode", viper.GetBool("HookMode")).
 			Stack().
+			Err(err).
 			Send()
 		return err
 	}
@@ -132,7 +133,7 @@ func StartBotHook() error {
 		tgbot.FilePath(viper.GetString("CertPath")),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("create webhook msg: %w", err)
 	}
 
 	_, err = bot.Request(webhookConfig)
@@ -148,7 +149,7 @@ func StartBotHook() error {
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("start boot hook: listen and server tls: %w", err)
+		return fmt.Errorf("start boot hook: listen and serve tls: %w", err)
 	}
 	logger.Log.Debug().Msg("Server shutdown")
 	return nil
