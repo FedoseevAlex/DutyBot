@@ -42,7 +42,7 @@ func ReadConfig() error {
 		return err
 	}
 
-	viper.SetDefault("DutyAnnounceSchedule", "0 10 * * *")
+	viper.SetDefault("DutyAnnounceSchedule", "0 7 * * *")
 	if err := viper.BindEnv("DutyAnnounceSchedule", "ANNOUNCE_SCHEDULE"); err != nil {
 		return err
 	}

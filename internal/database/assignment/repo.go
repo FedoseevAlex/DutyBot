@@ -149,15 +149,12 @@ func (asr *AssignmentRepoData) GetAssignmentScheduleAllChats(
 	today := utils.GetToday()
 
 	sql, params, err := goqu.From(assignmentsTableName).
-		Select("uuid", "at", "chat_id", "operator").
-		Where(goqu.Ex{
-			"at": goqu.I("at").
-				Between(
-					exp.NewRangeVal(
-						today.Format(utils.DateFormat),
-						due.Format(utils.DateFormat),
-					)),
-		}).
+		Select(Assignment{}).
+		Where(goqu.I("at").Between(
+			exp.NewRangeVal(
+				today.Format(utils.DateFormat),
+				due.Format(utils.DateFormat),
+			))).
 		Order(goqu.I("at").Desc()).
 		ToSQL()
 	logger.Log.Debug().Str("sql", sql).Send()
